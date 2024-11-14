@@ -1,5 +1,3 @@
-// src/context/AuthContext.js
-
 import React, { createContext, useState, useEffect } from 'react';
 
 // Create the AuthContext
@@ -7,30 +5,26 @@ export const AuthContext = createContext();
 
 // Create the AuthProvider component
 const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-
-  // Load user from localStorage on initial render
-  useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-  }, []);
+  const [auth, setAuth] = useState(() => {
+    const storedAuth = JSON.parse(localStorage.getItem('auth'));
+    return storedAuth || { user: null, token: null };
+  });
 
   // Function to handle login
-  const login = (userData) => {
-    setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
+  const login = (userData, tokenData) => {
+    const authData = { user: userData, token: tokenData };
+    setAuth(authData);
+    localStorage.setItem('auth', JSON.stringify(authData));
   };
 
   // Function to handle logout
   const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
+    setAuth({ user: null, token: null });
+    localStorage.removeItem('auth');
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ ...auth, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

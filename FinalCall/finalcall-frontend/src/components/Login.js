@@ -1,8 +1,7 @@
-// src/components/Login.js
-
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { authFetch } from '../utils/authFetch';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -22,17 +21,14 @@ const Login = () => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:8094/api/auth/login', {
+      const response = await authFetch('http://localhost:8094/api/auth/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(credentials)
+        body: JSON.stringify(credentials),
       });
 
       if (response.ok) {
         const data = await response.json();
-        login(data.user); // Update AuthContext with user data
+        login(data.user, data.token); // Store user and token in context
         navigate('/items');
       } else {
         const errorMessage = await response.text();
@@ -51,7 +47,12 @@ const Login = () => {
         className="bg-white p-6 rounded shadow-md w-full max-w-sm"
       >
         <h2 className="text-2xl font-bold mb-4">Login</h2>
-        {error && <p className="text-red-500 mb-4">{error}</p>}
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <strong className="font-bold">Error:</strong>
+            <span className="block sm:inline"> {error}</span>
+          </div>
+        )}
         <div className="mb-4">
           <label className="block text-gray-700">Username</label>
           <input

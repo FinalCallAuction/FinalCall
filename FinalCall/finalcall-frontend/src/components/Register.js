@@ -1,8 +1,7 @@
-// src/components/Register.js
-
 import React, { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { authFetch } from '../utils/authFetch';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -22,33 +21,15 @@ const Register = () => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:8094/api/auth/register', {
+      const response = await authFetch('http://localhost:8094/api/auth/register', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
         body: JSON.stringify(details)
       });
 
       if (response.ok) {
-        // After successful registration, auto-login the user
-        const loginResponse = await fetch('http://localhost:8094/api/auth/login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ username: details.username, password: details.password })
-        });
-
-        if (loginResponse.ok) {
-          const data = await loginResponse.json();
-          login(data.user); // Update AuthContext with user data
-          navigate('/items');
-        } else {
-          const errorMessage = await loginResponse.text();
-          setError('Registration successful, but auto-login failed.');
-          console.error('Auto-Login Error:', errorMessage);
-        }
+        const data = await response.json();
+        login(data.user, data.token); // Store user and token
+        navigate('/items');
       } else {
         const errorMessage = await response.text();
         setError(errorMessage);
@@ -66,7 +47,12 @@ const Register = () => {
         className="bg-white p-6 rounded shadow-md w-full max-w-sm"
       >
         <h2 className="text-2xl font-bold mb-4">Signup</h2>
-        {error && <p className="text-red-500 mb-4">{error}</p>}
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <strong className="font-bold">Error:</strong>
+            <span className="block sm:inline"> {error}</span>
+          </div>
+        )}
         <div className="mb-4">
           <label className="block text-gray-700">Username</label>
           <input

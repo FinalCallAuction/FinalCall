@@ -7,6 +7,7 @@ import LandingPage from './components/LandingPage';
 import Login from './components/Login';
 import Register from './components/Register';
 import ItemsPage from './components/ItemsPage';
+import CreateItem from './components/CreateItem';
 import { AuthContext } from './context/AuthContext';
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
         <Route path="/login" element={!user ? <Login /> : <Navigate to="/items" />} />
         <Route path="/signup" element={!user ? <Register /> : <Navigate to="/items" />} />
         <Route path="/items" element={<ItemsPage />} />
+        <Route path="/create-item" element={user ? <CreateItem /> : <Navigate to="/login" />} />
         {/* Add a catch-all route for undefined paths */}
         <Route path="*" element={<Navigate to="/items" />} />
       </Routes>

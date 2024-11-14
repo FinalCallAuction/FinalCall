@@ -43,6 +43,12 @@ const Navbar = () => {
             </>
           ) : (
             <>
+              <Link
+                to="/create-item"
+                className="mr-4 text-gray-700 hover:text-yellow-600"
+              >
+                List Item
+              </Link>
               <span className="mr-4 text-gray-700">
                 {user.username} ({user.email})
               </span>
