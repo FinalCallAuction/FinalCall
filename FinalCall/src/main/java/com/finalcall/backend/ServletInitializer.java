@@ -1,4 +1,4 @@
-package com.finalcall;
+package com.finalcall.backend;
 
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
