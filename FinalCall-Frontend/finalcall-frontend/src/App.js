@@ -8,6 +8,7 @@ import Login from './components/Login';
 import Register from './components/Register';
 import ItemsPage from './components/ItemsPage';
 import CreateItem from './components/CreateItem';
+import ItemDetail from './components/ItemDetail'; // Import the new component
 import { AuthContext } from './context/AuthContext';
 
 const App = () => {
@@ -36,6 +37,10 @@ const App = () => {
         <Route
           path="/create-item"
           element={user ? <CreateItem /> : <Navigate to="/login" />}
+        />
+        <Route
+          path="/items/:id"
+          element={user ? <ItemDetail /> : <Navigate to="/login" />}
         />
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
