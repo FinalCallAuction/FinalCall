@@ -1,19 +1,18 @@
 package com.finalcall.backend.entity;
 
-import javax.validation.constraints.NotNull;
-
 public class PaymentRequest {
-    private String paymentMethodId;
+
     private Long amount;
     private String currency;
+    private String paymentMethod;
 
-    // Getters and Setters
-    public String getPaymentMethodId() {
-        return paymentMethodId;
+    public PaymentRequest() {
     }
 
-    public void setPaymentMethodId(String paymentMethodId) {
-        this.paymentMethodId = paymentMethodId;
+    public PaymentRequest(Long amount, String currency, String paymentMethod) {
+        this.amount = amount;
+        this.currency = currency;
+        this.paymentMethod = paymentMethod;
     }
 
     public Long getAmount() {
@@ -30,5 +29,13 @@ public class PaymentRequest {
 
     public void setCurrency(String currency) {
         this.currency = currency;
+    }
+
+    public String getPaymentMethod() {
+        return paymentMethod;
+    }
+
+    public void setPaymentMethod(String paymentMethod) {
+        this.paymentMethod = paymentMethod;
     }
 }
