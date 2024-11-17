@@ -12,4 +12,5 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
     List<Item> findByAuctionEndTimeAfterAndSoldFalse(LocalDateTime now);
     List<Item> findByAuctionTypeAndSoldFalse(AuctionType auctionType);
     boolean existsByRandomId(String randomId);
+    List<Item> findByListedByAndAuctionEndTimeAfterAndSoldFalse(String listedBy, LocalDateTime now);
 }

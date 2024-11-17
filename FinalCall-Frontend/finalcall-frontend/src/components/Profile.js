@@ -1,13 +1,12 @@
-// src/components/Profile.js
-
 import React, { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { authFetch } from '../utils/authFetch';
 import { useNavigate, Link } from 'react-router-dom';
+import { authFetch } from '../utils/authFetch';
 
 const Profile = () => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [userDetails, setUserDetails] = useState(null);
   const [activeListings, setActiveListings] = useState([]);
   const [error, setError] = useState('');
 
@@ -15,14 +14,34 @@ const Profile = () => {
     if (!user) {
       navigate('/login');
     } else {
+      fetchUserDetails();
       fetchActiveListings();
     }
     // eslint-disable-next-line
   }, [user]);
 
+  const fetchUserDetails = async () => {
+    try {
+      const response = await authFetch(`http://localhost:8081/api/user/${user.id}`, {
+        method: 'GET',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUserDetails(data);
+      } else {
+        const errorMsg = await response.text();
+        setError(errorMsg);
+      }
+    } catch (err) {
+      setError('Failed to fetch user details.');
+      console.error('Fetch User Details Error:', err);
+    }
+  };
+
   const fetchActiveListings = async () => {
     try {
-      const response = await authFetch(`http://localhost:8082/api/user/${user.id}/active-listings`, {
+      const response = await authFetch(`http://localhost:8082/api/items/user/active-listings`, {
         method: 'GET',
       });
 
@@ -39,12 +58,43 @@ const Profile = () => {
     }
   };
 
+
+
+  if (!userDetails) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <p>Loading profile details...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-6">
       <h1 className="text-3xl font-bold mb-4">Profile</h1>
       <div className="mb-6">
-        <h2 className="text-xl font-semibold">Username: {user.username}</h2>
-        <h2 className="text-xl font-semibold">Email: {user.email}</h2>
+        <h2 className="text-xl font-semibold">Username: {userDetails.username}</h2>
+        <h2 className="text-xl font-semibold">Email: {userDetails.email}</h2>
+        <h2 className="text-xl font-semibold">First Name: {userDetails.firstName}</h2>
+        <h2 className="text-xl font-semibold">Last Name: {userDetails.lastName}</h2>
+        <h2 className="text-xl font-semibold">Address:</h2>
+        <p className="ml-4">
+          {userDetails.streetAddress}, {userDetails.province}, {userDetails.country}, {userDetails.postalCode}
+        </p>
+        <h2 className="text-xl font-semibold">Seller Status: {userDetails.isSeller ? 'Seller' : 'Buyer'}</h2>
+      </div>
+      <div className="flex space-x-4 mb-6">
+        <Link
+          to="/change-password"
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          Change Password
+        </Link>
+        <Link
+          to="/change-address"
+          className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+        >
+          Change Address
+        </Link>
       </div>
       <h2 className="text-2xl font-bold mb-4">Active Listings</h2>
       {error && (

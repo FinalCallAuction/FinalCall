@@ -27,8 +27,8 @@ public class ItemController {
     @Autowired
     private ItemService itemService;
 
-    // Get all active items
-    @GetMapping("/")
+    // Get all active items - Removed trailing slash
+    @GetMapping
     public ResponseEntity<?> getAllActiveItems() {
         try {
             List<Item> items = itemService.getAllActiveItems();
@@ -161,6 +161,18 @@ public class ItemController {
             } else {
                 return ResponseEntity.status(500).body("Internal server error.");
             }
+        }
+    }
+
+ // Get active listings for the current user
+    @GetMapping("/user/active-listings")
+    public ResponseEntity<?> getActiveListingsByUser(@AuthenticationPrincipal Jwt principal) {
+        try {
+            String username = principal.getSubject();
+            List<Item> items = itemService.getActiveListingsByUser(username);
+            return ResponseEntity.ok(items);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Internal server error.");
         }
     }
 

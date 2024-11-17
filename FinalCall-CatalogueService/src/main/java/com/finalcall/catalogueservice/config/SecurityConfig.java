@@ -18,33 +18,32 @@ import java.util.Base64;
 @Configuration
 public class SecurityConfig {
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-            .csrf(csrf -> csrf.disable())
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/items/create").authenticated()
-                .anyRequest().permitAll()
-            )
-            .oauth2ResourceServer(oauth2 -> oauth2
-                .jwt(Customizer.withDefaults())
-            );
-        return http.build();
-    }
+	@Bean
+	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+	    http
+	        .csrf(csrf -> csrf.disable())
+	        .authorizeHttpRequests(auth -> auth
+	            .requestMatchers(HttpMethod.POST, "/api/items/create").authenticated()
+	            .anyRequest().permitAll()
+	        )
+	        .oauth2ResourceServer(oauth2 -> oauth2
+	            .jwt(Customizer.withDefaults())
+	        );
+	    return http.build();
+	}
 
     @Bean
     public JwtDecoder jwtDecoder() {
         try {
             String publicKeyPath = "src/main/resources/finalcall_public_key.pem";
             byte[] keyBytes = Files.readAllBytes(Paths.get(publicKeyPath));
-
             String publicKeyContent = new String(keyBytes)
-                .replace("-----BEGIN PUBLIC KEY-----", "")
-                .replace("-----END PUBLIC KEY-----", "")
-                .replaceAll("\\s+", "");
+                    .replace("-----BEGIN PUBLIC KEY-----", "")
+                    .replace("-----END PUBLIC KEY-----", "")
+                    .replaceAll("\\s+", ""); // Removes any extra spaces or line breaks
 
-            keyBytes = Base64.getDecoder().decode(publicKeyContent);
-            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(keyBytes);
+            byte[] decodedKey = Base64.getDecoder().decode(publicKeyContent);
+            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(decodedKey);
             RSAPublicKey publicKey = (RSAPublicKey) KeyFactory.getInstance("RSA").generatePublic(keySpec);
 
             return NimbusJwtDecoder.withPublicKey(publicKey).build();

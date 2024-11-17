@@ -1,5 +1,3 @@
-// src/main/java/com/finalcall/authenticationservice/security/JwtTokenProvider.java
-
 package com.finalcall.authenticationservice.security;
 
 import org.springframework.stereotype.Component;
@@ -20,6 +18,12 @@ public class JwtTokenProvider {
         this.privateKey = privateKey;
     }
 
+    /**
+     * Generates a JWT token for the authenticated user.
+     *
+     * @param user The authenticated user.
+     * @return The JWT token as a String.
+     */
     public String generateToken(User user) {
         Instant now = Instant.now();
         Instant expiration = now.plus(2, ChronoUnit.HOURS);

@@ -18,7 +18,12 @@ const ItemDetail = () => {
 
   useEffect(() => {
     fetchItemDetails();
-    fetchBiddingHistory();
+    // Stubbed bidding history for now
+    setBiddingHistory([{
+      bidderUsername: 'stubUser1',
+      amount: 100.0,
+      timestamp: new Date().toISOString(),
+    }]);
     const timer = setInterval(() => {
       updateTimeLeft();
     }, 1000); // Update every second
@@ -43,25 +48,6 @@ const ItemDetail = () => {
     } catch (err) {
       setError('Failed to fetch item details.');
       console.error('Fetch Item Details Error:', err);
-    }
-  };
-
-  const fetchBiddingHistory = async () => {
-    try {
-      const response = await authFetch(`http://localhost:8082/api/items/${id}/bids`, {
-        method: 'GET',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setBiddingHistory(data);
-      } else {
-        const errorMsg = await response.text();
-        setError(errorMsg);
-      }
-    } catch (err) {
-      setError('Failed to fetch bidding history.');
-      console.error('Fetch Bidding History Error:', err);
     }
   };
 
@@ -178,16 +164,6 @@ const ItemDetail = () => {
           <p className="mb-2">
             <strong>Time Left:</strong> {timeLeft}
           </p>
-
-          {/* Optional: Button to place a bid */}
-          {/* {user.username !== item.listedBy && timeLeft !== 'Auction Ended' && (
-            <button
-              onClick={handlePlaceBid}
-              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              Place a Bid
-            </button>
-          )} */}
         </div>
       </div>
 
@@ -206,7 +182,7 @@ const ItemDetail = () => {
             <tbody>
               {biddingHistory.map((bid, index) => (
                 <tr key={index} className="text-center">
-                  <td className="py-2 px-4 border">{bid.bidder}</td>
+                  <td className="py-2 px-4 border">{bid.bidderUsername}</td>
                   <td className="py-2 px-4 border">{bid.amount.toFixed(2)}</td>
                   <td className="py-2 px-4 border">
                     {formatDistanceToNow(parseISO(bid.timestamp), { addSuffix: true })}

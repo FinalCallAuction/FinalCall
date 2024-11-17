@@ -1,5 +1,3 @@
-// src/main/java/com/finalcall/authenticationservice/config/JwtConfig.java
-
 package com.finalcall.authenticationservice.config;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -19,6 +17,12 @@ public class JwtConfig {
     @Value("${jwt.private.key.path}")
     private String privateKeyPath;
 
+    /**
+     * Bean to load the RSA private key from the specified path.
+     *
+     * @return The PrivateKey instance.
+     * @throws Exception If an error occurs while reading or parsing the key.
+     */
     @Bean
     public PrivateKey privateKey() throws Exception {
         String key = new String(Files.readAllBytes(Paths.get(privateKeyPath)));

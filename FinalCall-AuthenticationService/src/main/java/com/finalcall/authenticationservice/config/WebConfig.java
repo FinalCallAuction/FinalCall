@@ -6,6 +6,11 @@ import org.springframework.web.servlet.config.annotation.*;
 
 @Configuration
 public class WebConfig {
+    /**
+     * Configures CORS mappings.
+     *
+     * @return A WebMvcConfigurer instance.
+     */
     @Bean
     public WebMvcConfigurer corsConfigurer() {
         return new WebMvcConfigurer() {

@@ -40,6 +40,10 @@ public class ItemService {
     public Optional<Item> getItemById(Long id) {
         return itemRepository.findById(id);
     }
+    
+    public List<Item> getActiveListingsByUser(String listedBy) {
+        return itemRepository.findByListedByAndAuctionEndTimeAfterAndSoldFalse(listedBy, LocalDateTime.now());
+    }
 
     public Item createItem(Item item) {
         String randomId;

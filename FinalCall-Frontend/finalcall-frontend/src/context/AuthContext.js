@@ -47,11 +47,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Function to handle registration
-  const register = async (username, email, password) => {
+  const register = async (userDetails) => {
     try {
       const response = await axios.post(
         'http://localhost:8081/api/auth/register',
-        { username, email, password },
+        userDetails,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -95,6 +95,13 @@ export const AuthProvider = ({ children }) => {
           username: payload.sub,
           id: payload.id, // Ensure your JWT includes 'id'
           email: payload.email, // Include email if available
+          firstName: payload.firstName,
+          lastName: payload.lastName,
+          streetAddress: payload.streetAddress,
+          province: payload.province,
+          country: payload.country,
+          postalCode: payload.postalCode,
+          isSeller: payload.isSeller,
         });
       } catch (error) {
         console.error('Error decoding token:', error);
