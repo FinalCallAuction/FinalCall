@@ -24,17 +24,19 @@ public class PaymentController {
     // Handle payment processing form submission
     @PostMapping("/processPayment")
     public String processPayment(
-            @RequestParam("amount") String amount,
+            @RequestParam("amount") Long amount,
             @RequestParam("currency") String currency,
+            @RequestParam("paymentMethod") String paymentMethod,
             Model model) {
         
         // Create PaymentRequest object and process the payment
-        PaymentRequest paymentRequest = new PaymentRequest(amount, currency);
+        PaymentRequest paymentRequest = new PaymentRequest(amount, currency, paymentMethod);
         boolean isSuccess = paymentService.processPayment(paymentRequest);
         
         // Add payment details to the model to display on confirmation page
         model.addAttribute("amount", amount);
         model.addAttribute("currency", currency);
+        model.addAttribute("paymentMethod", paymentMethod);
         
         if (isSuccess) {
             return "paymentConfirmation";
