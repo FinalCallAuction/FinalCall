@@ -15,23 +15,22 @@ public class PaymentService {
     @Value("${stripe.api.key}")
     private String stripeApiKey;
 
-    // Use @PostConstruct to properly initialize the Stripe API key after the bean is created
     @PostConstruct
     public void init() {
+        // Initialize Stripe with the API key
         Stripe.apiKey = stripeApiKey;
     }
 
     public String createPaymentIntent(Long amount, String currency) {
+        // Validate input parameters
+        if (amount == null || amount <= 0) {
+            throw new RuntimeException("Amount must be greater than zero.");
+        }
+        if (currency == null || currency.isEmpty()) {
+            throw new RuntimeException("Currency must not be null or empty.");
+        }
+
         try {
-            // Input validation
-            if (amount == null || amount <= 0) {
-                throw new IllegalArgumentException("Amount must be greater than zero.");
-            }
-
-            if (currency == null || currency.isEmpty()) {
-                throw new IllegalArgumentException("Currency must be provided.");
-            }
-
             // Create a payment intent using Stripe
             Map<String, Object> params = new HashMap<>();
             params.put("amount", amount);
@@ -40,12 +39,8 @@ public class PaymentService {
 
             PaymentIntent paymentIntent = PaymentIntent.create(params);
             return paymentIntent.getClientSecret();
-        } catch (IllegalArgumentException e) {
-            // Handle validation errors
-            throw new PaymentProcessingException("Validation failed: " + e.getMessage(), e);
         } catch (Exception e) {
-            // Handle Stripe exceptions or other runtime exceptions
-            throw new PaymentProcessingException("Failed to create Payment Intent", e);
+            throw new RuntimeException("Failed to create Payment Intent", e);
         }
     }
 }
