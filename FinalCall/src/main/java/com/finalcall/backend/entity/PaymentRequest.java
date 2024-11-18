@@ -6,15 +6,18 @@ public class PaymentRequest {
     private String currency;
     private String paymentMethod;
 
+    // Default constructor
     public PaymentRequest() {
     }
 
+    // Constructor to initialize all fields
     public PaymentRequest(Long amount, String currency, String paymentMethod) {
         this.amount = amount;
         this.currency = currency;
         this.paymentMethod = paymentMethod;
     }
 
+    // Getters and Setters
     public Long getAmount() {
         return amount;
     }
