@@ -1,10 +1,13 @@
-package com.finalcall.auctionservice.entity;
+/**
+ * Represents the Auction entity mapped to the database.
+ * Contains auction details, such as type, status, start and end times, and prices.
+ */
+package com.finalcall.auctionservice.model;
 
 import jakarta.persistence.*;
 
 import com.finalcall.auctionservice.dto.ItemDTO;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 
