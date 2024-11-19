@@ -1,2 +1,9 @@
-package com.finalcall.auctionservice;public class FinalCallAuctionServiceApplication {
+package com.finalcall.auctionservice;
+
+import org.springframework.boot.SpringApplication;
+
+public class FinalCallAuctionServiceApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(FinalCallAuctionServiceApplication.class, args);
+    }
 }
