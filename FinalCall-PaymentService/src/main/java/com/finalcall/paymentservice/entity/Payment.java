@@ -23,19 +23,19 @@ public class Payment {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(nullable = false)
+    @Column(name = "item_id", nullable = false)
     private Long itemId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, scale = 2)
     private Double amount;
 
     @Column(nullable = false, length = 10)
     private String currency;
 
-    @Column(nullable = false, length = 255)
+    @Column(name = "payment_method_id", nullable = false, length = 255)
     private String paymentMethodId;
 
     @Column(nullable = false, length = 50)

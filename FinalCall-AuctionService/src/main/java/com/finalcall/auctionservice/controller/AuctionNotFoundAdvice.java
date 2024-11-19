@@ -1,7 +1,5 @@
-/**
- * Handles exceptions of type AuctionNotFoundException.
- * Provides a centralized way to return error messages and HTTP status codes when an auction is not found.
- */
+// src/main/java/com/finalcall/auctionservice/controller/AuctionNotFoundAdvice.java
+
 package com.finalcall.auctionservice.controller;
 
 import org.springframework.http.HttpStatus;
@@ -11,12 +9,11 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
 @ControllerAdvice
-class AuctionNotFoundAdvice {
+public class AuctionNotFoundAdvice {
     @ResponseBody
     @ExceptionHandler(AuctionNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     String auctionNotFoundHandler(AuctionNotFoundException ex) {
         return ex.getMessage();
     }
-
 }

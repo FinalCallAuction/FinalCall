@@ -1,10 +1,11 @@
+// src/main/java/com/finalcall/catalogueservice/entity/Item.java
+
 package com.finalcall.catalogueservice.entity;
 
 import jakarta.persistence.*;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Table(name = "items")
@@ -18,56 +19,39 @@ public class Item {
 
     private String name;
 
-    @Column(precision = 19, scale = 4)
-    private BigDecimal startingBid;
+    private String description; // Added
 
-    @Column(precision = 19, scale = 4)
-    private BigDecimal currentBid;
+    private String keywords; // Added
 
-    @Enumerated(EnumType.STRING)
-    private AuctionType auctionType;
-
-    private LocalDateTime auctionEndTime;
-
-    private String listedBy;
-
-    // Changed from String to List<String> for better image handling
     @ElementCollection
     @CollectionTable(name = "item_images", joinColumns = @JoinColumn(name = "item_id"))
     @Column(name = "image_url")
     private List<String> imageUrls = new ArrayList<>();
 
-    private boolean sold;
+    @Column(name = "listed_by", nullable = false)
+    private Long listedBy; // User ID
+
+    @Column(name = "starting_bid_price") // Added
+    private Double startingBidPrice;
 
     // Constructors
-    public Item() {}
+    public Item() {
+        this.randomId = UUID.randomUUID().toString().substring(0, 8);
+    }
 
-    public Item(String name, BigDecimal startingBid, AuctionType auctionType, LocalDateTime auctionEndTime, String listedBy, List<String> imageUrls) {
+    public Item(String name, Long listedBy, List<String> imageUrls, String description, String keywords, Double startingBidPrice) {
+        this.randomId = UUID.randomUUID().toString().substring(0, 8);
         this.name = name;
-        this.startingBid = startingBid;
-        this.currentBid = startingBid;
-        this.auctionType = auctionType;
-        this.auctionEndTime = auctionEndTime;
         this.listedBy = listedBy;
         this.imageUrls = imageUrls;
-        this.sold = false;
+        this.description = description;
+        this.keywords = keywords;
+        this.startingBidPrice = startingBidPrice;
     }
 
-    
-    public List<String> getImageUrls() {
-        return imageUrls;
-    }
 
-    public void setImageUrls(List<String> imageUrls) {
-        this.imageUrls = imageUrls;
-    }
+    // Getters and Setters
 
-    public void addImageUrl(String imageUrl) {
-        this.imageUrls.add(imageUrl);
-    }
-
-    // Existing getters and setters...
-    
     public Long getId() {
         return id;
     }
@@ -89,51 +73,47 @@ public class Item {
     }
 
     
-    public BigDecimal getStartingBid() {
-        return startingBid;
+    public String getDescription() { // Added
+        return description;
     }
 
-    public void setStartingBid(BigDecimal startingBid) {
-        this.startingBid = startingBid;
+    public void setDescription(String description) { // Added
+        this.description = description;
     }
 
-    public BigDecimal getCurrentBid() {
-        return currentBid;
+    public String getKeywords() { // Added
+        return keywords;
     }
 
-    public void setCurrentBid(BigDecimal currentBid) {
-        this.currentBid = currentBid;
+    public void setKeywords(String keywords) { // Added
+        this.keywords = keywords;
     }
 
-    public AuctionType getAuctionType() {
-        return auctionType;
+    public List<String> getImageUrls() {
+        return imageUrls;
     }
 
-    public void setAuctionType(AuctionType auctionType) {
-        this.auctionType = auctionType;
+    public void setImageUrls(List<String> imageUrls) {
+        this.imageUrls = imageUrls;
     }
 
-    public LocalDateTime getAuctionEndTime() {
-        return auctionEndTime;
+    public void addImageUrl(String imageUrl) {
+        this.imageUrls.add(imageUrl);
     }
 
-    public void setAuctionEndTime(LocalDateTime auctionEndTime) {
-        this.auctionEndTime = auctionEndTime;
-    }
-
-    public String getListedBy() {
+    public Long getListedBy() {
         return listedBy;
     }
 
-    public void setListedBy(String listedBy) {
+    public void setListedBy(Long listedBy) {
         this.listedBy = listedBy;
     }
 
-    public boolean isSold() {
-        return sold;
+    public Double getStartingBidPrice() { // Added
+        return startingBidPrice;
     }
 
-    public void setSold(boolean sold) {
-        this.sold = sold;
+    public void setStartingBidPrice(Double startingBidPrice) { // Added
+        this.startingBidPrice = startingBidPrice;
     }
 }

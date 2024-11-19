@@ -1,13 +1,10 @@
-/**
- * Configures WebSocket support for the application.
- * Registers WebSocket handlers for real-time communication, particularly for auction updates.
- */
+// src/main/java/com/finalcall/auctionservice/config/WebSocketConfig.java
 
 package com.finalcall.auctionservice.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.finalcall.auctionservice.database.AuctionRepository;
-import com.finalcall.auctionservice.database.BidRepository;
+import com.finalcall.auctionservice.repository.AuctionRepository;
+import com.finalcall.auctionservice.repository.BidRepository;
 import com.finalcall.auctionservice.websocket.AuctionWSHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -20,7 +17,7 @@ import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry
 
 @Configuration
 @EnableWebSocket
-@ComponentScan("com.finalcall.auctionservice") // TODO - Might not be needed. Test the app without it later
+@ComponentScan("com.finalcall.auctionservice")
 public class WebSocketConfig implements WebSocketConfigurer {
 
     @Autowired
@@ -30,7 +27,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
     private BidRepository bidRepository;
 
     @Autowired
-    ObjectMapper objectMapper;
+    private ObjectMapper objectMapper;
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
@@ -41,5 +38,4 @@ public class WebSocketConfig implements WebSocketConfigurer {
     public WebSocketHandler auctionHandler() {
         return new AuctionWSHandler(auctionRepository, bidRepository, objectMapper);
     }
-
 }

@@ -1,27 +1,31 @@
 package com.finalcall.catalogueservice.controller;
 
-import com.finalcall.catalogueservice.entity.AuctionType;
+import com.finalcall.catalogueservice.dto.AuctionDTO;
+import com.finalcall.catalogueservice.dto.ItemRequest;
 import com.finalcall.catalogueservice.entity.Item;
+import com.finalcall.catalogueservice.repository.ItemRepository;
 import com.finalcall.catalogueservice.service.ItemService;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -33,127 +37,91 @@ import javax.imageio.ImageIO;
 @CrossOrigin(origins = "*")
 public class ItemController {
 
-	private static final Logger logger = LoggerFactory.getLogger(ItemController.class);
+    private static final Logger logger = LoggerFactory.getLogger(ItemController.class);
 
     @Autowired
     private ItemService itemService;
+    
+    @Autowired
+    private ItemRepository itemRepository;
+
+    @Autowired
+    private RestTemplate restTemplate;
 
     @Value("${image.upload.dir}")
     private String imageUploadDir;
 
-    @PostMapping("/create")
-    public ResponseEntity<?> createItem(
-        @RequestParam("name") String name,
-        @RequestParam("startingBid") BigDecimal startingBid,
-        @RequestParam("auctionType") String auctionTypeStr,
-        @RequestParam("auctionEndTime") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime auctionEndTime,
-        @RequestParam(value = "images", required = false) MultipartFile[] imageFiles,
-        @AuthenticationPrincipal Jwt principal
-    ) {
-        try {
-            String username = principal.getSubject();
-            AuctionType auctionType = AuctionType.valueOf(auctionTypeStr.toUpperCase());
+    @Value("${auction.service.url}") // e.g., http://localhost:8083
+    private String auctionServiceUrl;
 
-            LocalDateTime nowPlusOneHour = LocalDateTime.now().plusHours(1);
-            if (auctionEndTime.isBefore(nowPlusOneHour)) {
-                logger.warn("Auction end time is too soon: {}", auctionEndTime);
-                return ResponseEntity.badRequest().body("Auction end time must be at least 1 hour from now.");
-            }
-
-            Item item = new Item();
-            item.setName(name);
-            item.setStartingBid(startingBid);
-            item.setAuctionType(auctionType);
-            item.setAuctionEndTime(auctionEndTime);
-            item.setListedBy(username);
-
-            // Initialize imageUrls list if not already initialized
-            if (item.getImageUrls() == null) {
-                item.setImageUrls(new java.util.ArrayList<>());
-            }
-
-            // Persist the item first to ensure it has an ID/randomId
-            item = itemService.createItem(item);
-            logger.info("Created new item with ID: {}", item.getId());
-
-            // Log the image upload directory
-            logger.debug("Image upload directory: {}", imageUploadDir);
-
-            // Handle multiple image uploads if present
-            if (imageFiles != null && imageFiles.length > 0) {
-                String itemImageDirPath = imageUploadDir + item.getRandomId() + "/";
-                Path itemImageDirAbsolutePath = Paths.get(itemImageDirPath).toAbsolutePath();
-                File itemImageDir = itemImageDirAbsolutePath.toFile();
-                logger.debug("Resolved absolute path for image directory: {}", itemImageDir.getAbsolutePath());
-
-                if (!itemImageDir.exists()) {
-                    try {
-                        boolean dirsCreated = itemImageDir.mkdirs();
-                        if (!dirsCreated) {
-                            logger.error("Failed to create upload directory at path: {}", itemImageDirPath);
-                            return ResponseEntity.status(500).body("Failed to create upload directory.");
-                        }
-                        logger.info("Created upload directory at path: {}", itemImageDirPath);
-                    } catch (SecurityException e) {
-                        logger.error("Security exception while creating directory: {}", itemImageDirPath, e);
-                        return ResponseEntity.status(500).body("Security exception while creating upload directory.");
-                    }
-                }
-
-                // Handle image uploads and convert to PNG if necessary
-                for (int i = 0; i < imageFiles.length; i++) {
-                    MultipartFile imageFile = imageFiles[i];
-                    if (!imageFile.isEmpty()) {
-                        String newImageName = item.getRandomId() + "-" + (i + 1) + ".png"; // Ensure PNG format
-                        Path imagePath = itemImageDirAbsolutePath.resolve(newImageName);
-                        File dest = imagePath.toFile();
-
-                        try {
-                            BufferedImage bufferedImage = ImageIO.read(imageFile.getInputStream());
-                            if (bufferedImage == null) {
-                                logger.error("Failed to read image file: {}", imageFile.getOriginalFilename());
-                                return ResponseEntity.status(400).body("Invalid image file.");
-                            }
-
-                            // Save image as PNG
-                            ImageIO.write(bufferedImage, "png", dest);
-                            logger.info("Saved image as PNG: {}", dest.getAbsolutePath());
-                        } catch (IOException e) {
-                            logger.error("Failed to save image file: {}", dest.getAbsolutePath(), e);
-                            return ResponseEntity.status(500).body("Error saving image.");
-                        }
-
-                        // Construct the image URL
-                        String imageUrl = "/itemimages/" + item.getRandomId() + "/" + newImageName;
-
-                        // Add the image URL to the list
-                        item.addImageUrl(imageUrl);
-                        logger.info("Added image URL: {}", imageUrl);
-                    }
-                }
-
-                // Save the updated item with image URLs
-                itemService.saveItem(item);
-                logger.info("Updated item with image URLs: {}", item.getImageUrls());
-            }
-
-            return ResponseEntity.ok(item);
-        } catch (IllegalArgumentException e) {
-            logger.warn("Invalid auction type: {}", auctionTypeStr, e);
-            return ResponseEntity.badRequest().body("Invalid auction type. Valid types are DUTCH and FORWARD.");
-        } catch (Exception e) {
-            logger.error("Unexpected error during item creation", e);
-            return ResponseEntity.status(500).body("An unexpected error occurred.");
-        }
+    public ItemController() {
+        logger.info("ItemController initialized successfully.");
     }
 
+    /**
+     * Create a new item and corresponding auction entry.
+     *
+     * @param name          Name of the item.
+     * @param startingBid   Starting bid price.
+     * @param auctionType   Type of the auction (e.g., FORWARD, DUTCH).
+     * @param auctionEndTime Auction end time in 'yyyy-MM-ddTHH:mm' format.
+     * @param imageFiles    Array of image files.
+     * @param principal     JWT principal containing user details.
+     * @return ResponseEntity with the created item or error message.
+     */
+    @PostMapping("/create")
+    public ResponseEntity<?> createItem(@RequestBody ItemRequest itemRequest, @AuthenticationPrincipal Jwt principal) {
+        // Extract user ID from JWT
+        Long userId = principal.getClaim("id");
+        if (userId == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User ID not found in token.");
+        }
+
+        // Create a new item entity and set fields
+        Item item = new Item();
+        item.setName(itemRequest.getName());
+        item.setDescription(itemRequest.getDescription());  // Ensure description is handled
+        item.setListedBy(userId);
+        item.setStartingBidPrice(itemRequest.getStartingBid());
+
+        // Save the item in CatalogueService database
+        Item savedItem = itemRepository.save(item);
+
+        // Prepare AuctionDTO to send to AuctionService
+        AuctionDTO auctionDTO = new AuctionDTO();
+        auctionDTO.setCatalogueItemId(savedItem.getId());
+        auctionDTO.setAuctionType(itemRequest.getAuctionType());
+        auctionDTO.setStartingBidPrice(itemRequest.getStartingBid());
+        auctionDTO.setAuctionEndTime(itemRequest.getAuctionEndTime());
+
+        // Send request to AuctionService
+        try {
+            restTemplate.postForEntity("http://localhost:8083/api/auctions/create", auctionDTO, Void.class);
+        } catch (HttpClientErrorException.Forbidden e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Failed to communicate with Auction service: Unauthorized");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to communicate with Auction service");
+        }
+
+        return ResponseEntity.status(HttpStatus.CREATED).body("Item created successfully with ID: " + savedItem.getId());
+    }
+
+
+    /**
+     * Upload additional images for an existing item.
+     *
+     * @param id         ID of the item.
+     * @param imageFiles Array of image files to upload.
+     * @param principal  JWT principal containing user details.
+     * @return ResponseEntity with updated image URLs or error message.
+     */
     @PostMapping("/{id}/upload-image")
     public ResponseEntity<?> uploadImage(
             @PathVariable Long id,
             @RequestParam("images") MultipartFile[] imageFiles,
             @AuthenticationPrincipal Jwt principal) {
         try {
-            String username = principal.getSubject();
+            Long userId = Long.parseLong(principal.getSubject()); // Assuming subject is userId
 
             Optional<Item> itemOpt = itemService.getItemById(id);
             if (itemOpt.isEmpty()) {
@@ -162,8 +130,8 @@ public class ItemController {
             }
 
             Item item = itemOpt.get();
-            if (!item.getListedBy().equals(username)) {
-                logger.warn("User {} is not authorized to upload images for item {}", username, id);
+            if (!item.getListedBy().equals(userId)) {
+                logger.warn("User {} is not authorized to upload images for item {}", userId, id);
                 return ResponseEntity.status(403).body("You are not authorized to upload images for this item.");
             }
 
@@ -239,9 +207,9 @@ public class ItemController {
     /**
      * Update images for an existing item.
      *
-     * @param id         ID of the item to update.
+     * @param id          ID of the item to update.
      * @param updatedImages List of updated image URLs.
-     * @param principal  JWT principal containing authenticated user details.
+     * @param principal  JWT principal containing user details.
      * @return ResponseEntity indicating success or failure.
      */
     @PutMapping("/{id}/update-images")
@@ -251,7 +219,7 @@ public class ItemController {
         @AuthenticationPrincipal Jwt principal
     ) {
         try {
-            String username = principal.getSubject();
+            Long userId = Long.parseLong(principal.getSubject()); // Assuming subject is userId
 
             Optional<Item> itemOpt = itemService.getItemById(id);
             if (itemOpt.isEmpty()) {
@@ -261,8 +229,8 @@ public class ItemController {
 
             Item item = itemOpt.get();
 
-            if (!item.getListedBy().equals(username)) {
-                logger.warn("User {} is not authorized to update images for item {}", username, id);
+            if (!item.getListedBy().equals(userId)) {
+                logger.warn("User {} is not authorized to update images for item {}", userId, id);
                 return ResponseEntity.status(403).body("You are not authorized to update images for this item.");
             }
 
@@ -336,44 +304,10 @@ public class ItemController {
     }
 
     /**
-     * Retrieve all active (ongoing) items.
-     *
-     * @return ResponseEntity with a list of active items or an error message.
-     */
-    @GetMapping
-    public ResponseEntity<?> getAllActiveItems() {
-        try {
-            List<Item> items = itemService.getAllActiveItems();
-            return ResponseEntity.ok(items);
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("Internal server error.");
-        }
-    }
-
-    /**
-     * Retrieve items by auction type.
-     *
-     * @param auctionType Auction type as a string (e.g., "FORWARD" or "DUTCH").
-     * @return ResponseEntity with a list of items matching the auction type or an error message.
-     */
-    @GetMapping("/type/{auctionType}")
-    public ResponseEntity<?> getItemsByAuctionType(@PathVariable String auctionType) {
-        try {
-            AuctionType type = AuctionType.valueOf(auctionType.toUpperCase());
-            List<Item> items = itemService.getItemsByAuctionType(type);
-            return ResponseEntity.ok(items);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body("Invalid auction type. Valid types are DUTCH and FORWARD.");
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("Internal server error.");
-        }
-    }
-
-    /**
      * Retrieve an item by its ID.
      *
      * @param id ID of the item.
-     * @return ResponseEntity with the item details or an error message.
+     * @return ResponseEntity with the item details or error message.
      */
     @GetMapping("/{id}")
     public ResponseEntity<Object> getItemById(@PathVariable Long id) {
@@ -388,47 +322,42 @@ public class ItemController {
     }
 
     /**
-     * Update item details (excluding images).
+     * Retrieve all items listed by the authenticated user.
      *
-     * @param id          ID of the item to update.
-     * @param updatedItem Item object containing updated details.
-     * @param principal   JWT principal containing authenticated user details.
-     * @return ResponseEntity with the updated item or an error message.
+     * @param principal JWT principal containing user details.
+     * @return ResponseEntity with list of items or error message.
      */
-    @PutMapping("/{id}")
-    public ResponseEntity<?> updateItem(
-        @PathVariable Long id,
-        @RequestBody Item updatedItem,
-        @AuthenticationPrincipal Jwt principal
-    ) {
+    @GetMapping("/user")
+    public ResponseEntity<?> getUserItems(@AuthenticationPrincipal Jwt principal) {
         try {
-            // Optionally, verify if the user has permission to update the item
-            Optional<Item> existingItemOpt = itemService.getItemById(id);
-            if (existingItemOpt.isEmpty()) {
-                return ResponseEntity.status(404).body("Item not found.");
+            Long userId = principal.getClaim("id");
+            if (userId == null) {
+                logger.warn("JWT does not contain 'id' claim.");
+                return ResponseEntity.status(400).body("Invalid token: missing user ID.");
             }
 
-            Item existingItem = existingItemOpt.get();
-
-            // Optional: Verify that the authenticated user is the owner
-            String username = principal.getSubject();
-            if (!existingItem.getListedBy().equals(username)) {
-                return ResponseEntity.status(403).body("You are not authorized to update this item.");
-            }
-
-            // Update fields (exclude fields that shouldn't be updated directly)
-            existingItem.setName(updatedItem.getName());
-            existingItem.setStartingBid(updatedItem.getStartingBid());
-            existingItem.setAuctionType(updatedItem.getAuctionType());
-            existingItem.setAuctionEndTime(updatedItem.getAuctionEndTime());
-            // Add more fields as necessary
-
-            // Save the updated item
-            itemService.saveItem(existingItem);
-
-            return ResponseEntity.ok(existingItem);
+            List<Item> userItems = itemService.getItemsByUser(userId);
+            return ResponseEntity.ok(userItems);
         } catch (Exception e) {
+            logger.error("Error fetching user items", e);
             return ResponseEntity.status(500).body("Internal server error.");
         }
     }
+    
+    /**
+     * Retrieve all items.
+     *
+     * @return ResponseEntity with the list of items or an error message.
+     */
+    @GetMapping
+    public ResponseEntity<?> getAllItems() {
+        try {
+            List<Item> items = itemService.getAllItems();
+            return ResponseEntity.ok(items);
+        } catch (Exception e) {
+            logger.error("Error fetching all items", e);
+            return ResponseEntity.status(500).body("Error fetching items.");
+        }
+    }
+
 }

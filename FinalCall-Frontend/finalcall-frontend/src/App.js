@@ -35,10 +35,10 @@ const App = () => {
           path="/register"
           element={!user ? <Register /> : <Navigate to="/items" />}
         />
-		<Route
-		  path="/admin"
-		  element={user && user.username === 'admin' ? <AdminPanel /> : <Navigate to="/" />}
-		/>
+        <Route
+          path="/admin"
+          element={user && user.username === 'admin' ? <AdminPanel /> : <Navigate to="/" />}
+        />
         <Route
           path="/items"
           element={user ? <ItemsPage /> : <Navigate to="/login" />}
@@ -51,10 +51,10 @@ const App = () => {
           path="/items/:id"
           element={user ? <ItemDetail /> : <Navigate to="/login" />}
         />
-		<Route
-		  path="/items/:id/payment"
-		  element={user ? <MakePayment /> : <Navigate to="/login" />}
-		/>
+        <Route
+          path="/items/:id/payment"
+          element={user ? <MakePayment /> : <Navigate to="/login" />}
+        />
         <Route
           path="/change-password"
           element={user ? <ChangePassword /> : <Navigate to="/login" />}

@@ -63,6 +63,12 @@
             <artifactId>thymeleaf-extras-springsecurity6</artifactId>
         </dependency>
         
+        <dependency>
+	        <groupId>com.nimbusds</groupId>
+	        <artifactId>nimbus-jose-jwt</artifactId>
+	        <version>9.31</version>
+	    </dependency>
+        
         <!-- Uncomment if using MySQL Database -->
         <!--
         <dependency>

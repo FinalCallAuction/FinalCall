@@ -15,10 +15,11 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("*") // Adjust as needed for security
+                .allowedOrigins("*") // For development; restrict in production
                 .allowedMethods("*")
                 .allowedHeaders("*");
     }
+
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {

@@ -1,14 +1,15 @@
-/**
- * The main entry point for the Spring Boot application.
- * Bootstraps the application and enables specific features.
- */
+// src/main/java/com/finalcall/auctionservice/FinalCallAuctionServiceApplication.java
+
 package com.finalcall.auctionservice;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 
 @SpringBootApplication
+@EnableFeignClients(basePackages = "com.finalcall.auctionservice.services") // Ensure this matches your Feign client package
 public class FinalCallAuctionServiceApplication {
+
     public static void main(String[] args) {
         SpringApplication.run(FinalCallAuctionServiceApplication.class, args);
     }

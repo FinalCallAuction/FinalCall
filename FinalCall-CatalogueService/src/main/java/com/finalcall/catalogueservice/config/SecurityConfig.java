@@ -1,55 +1,67 @@
 package com.finalcall.catalogueservice.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.util.StreamUtils;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.security.interfaces.RSAPublicKey;
+
+import java.nio.charset.StandardCharsets;
+import java.nio.file.NoSuchFileException;
 import java.security.KeyFactory;
+import java.security.interfaces.RSAPublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 
 @Configuration
 public class SecurityConfig {
 
-	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-	    http
-	        .csrf(csrf -> csrf.disable())
-	        .authorizeHttpRequests(auth -> auth
-	            .requestMatchers(HttpMethod.POST, "/api/items/create").authenticated()
-	            .anyRequest().permitAll()
-	        )
-	        .oauth2ResourceServer(oauth2 -> oauth2
-	            .jwt(Customizer.withDefaults())
-	        );
-	    return http.build();
-	}
+    @Value("${jwt.public.key.path}")
+    private String jwtPublicKeyPath;
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/api/auth/**").permitAll() // Allow auth endpoints
+                .anyRequest().authenticated() // All other requests require authentication
+            )
+            .oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(Customizer.withDefaults())
+            );
+
+        return http.build();
+    }
 
     @Bean
     public JwtDecoder jwtDecoder() {
         try {
-            String publicKeyPath = "src/main/resources/finalcall_public_key.pem";
-            byte[] keyBytes = Files.readAllBytes(Paths.get(publicKeyPath));
-            String publicKeyContent = new String(keyBytes)
-                    .replace("-----BEGIN PUBLIC KEY-----", "")
-                    .replace("-----END PUBLIC KEY-----", "")
-                    .replaceAll("\\s+", ""); // Removes any extra spaces or line breaks
+            ClassPathResource resource = new ClassPathResource(jwtPublicKeyPath);
+            if (!resource.exists()) {
+                throw new NoSuchFileException("Public key file not found: " + jwtPublicKeyPath);
+            }
 
-            byte[] decodedKey = Base64.getDecoder().decode(publicKeyContent);
-            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(decodedKey);
-            RSAPublicKey publicKey = (RSAPublicKey) KeyFactory.getInstance("RSA").generatePublic(keySpec);
+            String publicKeyContent = StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8)
+                    .replaceAll("\\n", "")
+                    .replace("-----BEGIN PUBLIC KEY-----", "")
+                    .replace("-----END PUBLIC KEY-----", "");
+
+            byte[] decoded = Base64.getDecoder().decode(publicKeyContent);
+            X509EncodedKeySpec keySpec = new X509EncodedKeySpec(decoded);
+            KeyFactory kf = KeyFactory.getInstance("RSA");
+            RSAPublicKey publicKey = (RSAPublicKey) kf.generatePublic(keySpec);
 
             return NimbusJwtDecoder.withPublicKey(publicKey).build();
+        } catch (NoSuchFileException e) {
+            throw new IllegalArgumentException("Public key file not found: " + jwtPublicKeyPath, e);
         } catch (Exception e) {
-            e.printStackTrace();
-            throw new RuntimeException("Failed to load public key", e);
+            throw new IllegalArgumentException("Failed to decode public key for JWT", e);
         }
     }
 }

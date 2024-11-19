@@ -1,14 +1,11 @@
-/**
- * Handles WebSocket connections for auction updates.
- * Sends real-time auction and bid updates to connected clients.
- * Manages WebSocket sessions associated with specific auctions.
- */
+// src/main/java/com/finalcall/auctionservice/websocket/AuctionWSHandler.java
+
 package com.finalcall.auctionservice.websocket;
 
-import com.finalcall.auctionservice.database.AuctionRepository;
-import com.finalcall.auctionservice.database.BidRepository;
-import com.finalcall.auctionservice.model.Auction;
-import com.finalcall.auctionservice.model.Bid;
+import com.finalcall.auctionservice.entity.Auction;
+import com.finalcall.auctionservice.entity.Bid;
+import com.finalcall.auctionservice.repository.AuctionRepository;
+import com.finalcall.auctionservice.repository.BidRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.*;
@@ -49,7 +46,6 @@ public class AuctionWSHandler extends TextWebSocketHandler {
             Auction auction = auctionOptional.get();
             List<Bid> bids = bidRepository.findByAuctionId(auctionId);
             // Create a response with auction details and highest bid
-            // The response format can be JSON or any format you prefer
             String response = createAuctionResponse(auction, bids);
             session.sendMessage(new TextMessage(response));
         }
@@ -70,7 +66,7 @@ public class AuctionWSHandler extends TextWebSocketHandler {
     private String createAuctionResponse(Auction auction, List<Bid> bids) {
         // Implement logic to create a JSON response
         try {
-            // Here you can create a custom object or Map to hold the response data
+            // Create a Map to hold the response data
             Map<String, Object> responseData = new HashMap<>();
             responseData.put("auction", auction);
             responseData.put("highestBid", bids.stream().max(Comparator.comparing(Bid::getAmount)).orElse(null));
@@ -80,27 +76,34 @@ public class AuctionWSHandler extends TextWebSocketHandler {
             // Handle exceptions, possibly logging them and returning an error message
             return "{\"error\": \"Error creating auction response\"}";
         }
-
     }
 
+    /**
+     * Broadcast updated auction details to all connected clients for a specific auction.
+     *
+     * @param auctionId ID of the auction.
+     * @param message   Updated auction details.
+     * @throws IOException If sending messages fails.
+     */
     public void broadcast(String auctionId, Auction message) throws IOException {
-
         Set<WebSocketSession> sessions = auctionSessions.get(auctionId);
         if (sessions != null) {
-
             for (WebSocketSession session : sessions) {
-                System.out.println("Session broadcast: " + auctionId);
                 sendAuctionUpdate(session, Long.parseLong(auctionId));
-
             }
         }
     }
 
+    /**
+     * Extracts the auction ID from the WebSocket session's URI.
+     *
+     * @param session WebSocketSession.
+     * @return Auction ID as a string.
+     */
     private String getAuctionId(WebSocketSession session) {
-        // Assuming the URI pattern is /ws/auctions/{auctionId}/update
+        // Assuming the URI pattern is /auctions/{auctionId}/update
         String path = session.getUri().getPath();
         String[] segments = path.split("/");
-        return segments[segments.length - 2]; // Adjust index as needed
+        return segments.length >= 3 ? segments[2] : "0"; // Adjust index as needed
     }
-
 }

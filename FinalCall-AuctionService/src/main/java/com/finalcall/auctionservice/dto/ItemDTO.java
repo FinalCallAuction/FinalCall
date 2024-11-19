@@ -1,22 +1,34 @@
+// src/main/java/com/finalcall/auctionservice/dto/ItemDTO.java
+
+package com.finalcall.auctionservice.dto;
+
+import java.util.List;
+
 /**
  * Data Transfer Object representing an item.
  * Used to transfer item data when interacting with the Catalogue Service.
  */
-
-package com.finalcall.auctionservice.dto;
-
-// This is meant to help us transfer data between CatalogueService and AuctionService.
-// This needs to be edited to fit the information stored in CatalogueService DB
-
 public class ItemDTO {
-    // Define AuctionType enum here
-
     private Long id;
     private String name;
-    private String description;
-    private Long sellerId;
-    private String imageUrls;
-    private String keywords;
+    private String description; // Ensure this field is now present
+    private Long listedBy; // Renamed from sellerId to listedBy
+    private List<String> imageUrls; // Changed from String to List<String>
+    private String keywords; // Ensure this field is now present
+    private Double startingBidPrice; // Renamed from startingBid to startingBidPrice
+
+    // Constructors
+    public ItemDTO() {}
+
+    public ItemDTO(Long id, String name, String description, Long listedBy, List<String> imageUrls, String keywords, Double startingBidPrice) {
+        this.id = id;
+        this.name = name;
+        this.description = description;
+        this.listedBy = listedBy;
+        this.imageUrls = imageUrls;
+        this.keywords = keywords;
+        this.startingBidPrice = startingBidPrice;
+    }
 
     // Getters and setters for each field
 
@@ -28,76 +40,53 @@ public class ItemDTO {
         this.id = id;
     }
 
-    // ... other getters and setters ...
-
-    /**
-     * @return String return the name
-     */
     public String getName() {
         return name;
     }
 
-    /**
-     * @param name the name to set
-     */
     public void setName(String name) {
         this.name = name;
     }
 
-    /**
-     * @return String return the description
-     */
-    public String getDescription() {
+    public String getDescription() { // Added
         return description;
     }
 
-    /**
-     * @param description the description to set
-     */
-    public void setDescription(String description) {
+    public void setDescription(String description) { // Added
         this.description = description;
     }
 
-    /**
-     * @return Long return the sellerId
-     */
-    public Long getSellerId() {
-        return sellerId;
+    public Long getListedBy() {
+        return listedBy;
     }
 
-    /**
-     * @param sellerId the sellerId to set
-     */
-    public void setSellerId(Long sellerId) {
-        this.sellerId = sellerId;
+    public void setListedBy(Long listedBy) {
+        this.listedBy = listedBy;
     }
 
-    /**
-     * @return String return the imageUrls
-     */
-    public String getImageUrls() {
+    public List<String> getImageUrls() {
         return imageUrls;
     }
 
-    /**
-     * @param imageUrls the imageUrls to set
-     */
-    public void setImageUrls(String imageUrls) {
+    public void setImageUrls(List<String> imageUrls) {
         this.imageUrls = imageUrls;
     }
-
-    /**
-     * @return String return the keywords
-     */
-    public String getKeywords() {
+    
+    public String getKeywords() { // Added
         return keywords;
     }
 
-    /**
-     * @param keywords the keywords to set
-     */
-    public void setKeywords(String keywords) {
+    public void setKeywords(String keywords) { // Added
         this.keywords = keywords;
     }
 
+    public Double getStartingBidPrice() { // Added
+        return startingBidPrice;
+    }
+
+    public void setStartingBidPrice(Double startingBidPrice) { // Added
+        this.startingBidPrice = startingBidPrice;
+    }
+
+    // Optionally, override toString(), equals(), and hashCode() methods
 }

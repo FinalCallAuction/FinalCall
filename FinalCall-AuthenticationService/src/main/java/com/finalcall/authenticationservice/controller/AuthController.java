@@ -2,10 +2,10 @@
 
 package com.finalcall.authenticationservice.controller;
 
+import com.finalcall.authenticationservice.config.JwtConfig;
 import com.finalcall.authenticationservice.entity.User;
 import com.finalcall.authenticationservice.dto.UserDTO;
 import com.finalcall.authenticationservice.service.UserService;
-import com.finalcall.authenticationservice.security.JwtTokenProvider;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -24,7 +24,7 @@ public class AuthController {
     private UserService userService;
 
     @Autowired
-    private JwtTokenProvider jwtTokenProvider; // Autowire JwtTokenProvider
+    private JwtConfig jwtConfig; // Autowire JwtConfig
 
     /**
      * Endpoint to register a new user.
@@ -36,7 +36,7 @@ public class AuthController {
     public ResponseEntity<?> registerUser(@RequestBody User user) {
         try {
             User registeredUser = userService.registerUser(user);
-            String token = jwtTokenProvider.generateToken(registeredUser); // Pass User object
+            String token = jwtConfig.generateToken(registeredUser); // Pass User object
             UserDTO userDTO = new UserDTO(
                 registeredUser.getId(),
                 registeredUser.getUsername(),
@@ -79,7 +79,7 @@ public class AuthController {
             return ResponseEntity.status(401).body("Credentials do not match");
         }
         User authenticatedUser = authenticatedUserOpt.get();
-        String token = jwtTokenProvider.generateToken(authenticatedUser); // Pass User object
+        String token = jwtConfig.generateToken(authenticatedUser); // Pass User object
         UserDTO userDTO = new UserDTO(
             authenticatedUser.getId(),
             authenticatedUser.getUsername(),

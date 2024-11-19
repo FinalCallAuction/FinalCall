@@ -37,10 +37,12 @@ const MakePayment = () => {
           itemId: id,
           amount: parseFloat(amount),
           currency: 'USD', // Assuming default currency
+          paymentMethodId: 'mock-payment-method', // Mock payment method ID
         }),
       });
 
       if (response.ok) {
+        const payment = await response.json();
         setSuccess('Payment successful!');
         navigate('/items');
       } else {

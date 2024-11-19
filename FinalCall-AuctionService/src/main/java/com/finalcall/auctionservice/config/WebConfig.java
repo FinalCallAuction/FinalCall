@@ -1,18 +1,13 @@
-/**
- * Configures Cross-Origin Resource Sharing (CORS) for the entire application.
- * Allows the application to accept requests from any origin, for frontend applications hosted on
- * different domains to interact with the backend API.
- */
+// src/main/java/com/finalcall/auctionservice/config/WebConfig.java
 
 package com.finalcall.auctionservice.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.servlet.config.annotation.*;
 
 @Configuration
-public class WebConfig {
+public class WebConfig implements WebMvcConfigurer {
 
     @Bean
     public WebMvcConfigurer corsConfigurer() {
@@ -25,8 +20,16 @@ public class WebConfig {
                         .allowedHeaders("*")
                         .allowCredentials(true); // Allow credentials
             }
-
         };
     }
-}
+   
+    @Override
+    public void addCorsMappings(CorsRegistry registry) {
+        registry.addMapping("/**")
+                .allowedOriginPatterns("*") // For development; restrict in production
+                .allowedMethods("GET", "POST", "PUT", "DELETE")
+                .allowedHeaders("*")
+                .allowCredentials(true); // Allow credentials
+    }
 
+}
