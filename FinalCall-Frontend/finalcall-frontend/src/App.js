@@ -9,10 +9,11 @@ import Register from './components/Register';
 import ItemsPage from './components/ItemsPage';
 import CreateItem from './components/CreateItem';
 import ItemDetail from './components/ItemDetail';
-import ChangePassword from './components/ChangePassword'; // Import the new component
-import ChangeAddress from './components/ChangeAddress'; // Import the new component
-import Profile from './components/Profile'; // Ensure you have a Profile component
-
+import ChangePassword from './components/ChangePassword';
+import ChangeAddress from './components/ChangeAddress';
+import Profile from './components/Profile'; 
+import MakePayment from './components/MakePayment';
+import AdminPanel from './components/AdminPanel';
 import { AuthContext } from './context/AuthContext';
 
 const App = () => {
@@ -34,6 +35,10 @@ const App = () => {
           path="/register"
           element={!user ? <Register /> : <Navigate to="/items" />}
         />
+		<Route
+		  path="/admin"
+		  element={user && user.username === 'admin' ? <AdminPanel /> : <Navigate to="/" />}
+		/>
         <Route
           path="/items"
           element={user ? <ItemsPage /> : <Navigate to="/login" />}
@@ -46,6 +51,10 @@ const App = () => {
           path="/items/:id"
           element={user ? <ItemDetail /> : <Navigate to="/login" />}
         />
+		<Route
+		  path="/items/:id/payment"
+		  element={user ? <MakePayment /> : <Navigate to="/login" />}
+		/>
         <Route
           path="/change-password"
           element={user ? <ChangePassword /> : <Navigate to="/login" />}

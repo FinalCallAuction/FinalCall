@@ -3,6 +3,8 @@ package com.finalcall.catalogueservice.entity;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "items")
@@ -29,25 +31,43 @@ public class Item {
 
     private String listedBy;
 
-    private String imageUrl;
+    // Changed from String to List<String> for better image handling
+    @ElementCollection
+    @CollectionTable(name = "item_images", joinColumns = @JoinColumn(name = "item_id"))
+    @Column(name = "image_url")
+    private List<String> imageUrls = new ArrayList<>();
 
     private boolean sold;
 
     // Constructors
     public Item() {}
 
-    public Item(String name, BigDecimal startingBid, AuctionType auctionType, LocalDateTime auctionEndTime, String listedBy, String imageUrl) {
+    public Item(String name, BigDecimal startingBid, AuctionType auctionType, LocalDateTime auctionEndTime, String listedBy, List<String> imageUrls) {
         this.name = name;
         this.startingBid = startingBid;
         this.currentBid = startingBid;
         this.auctionType = auctionType;
         this.auctionEndTime = auctionEndTime;
         this.listedBy = listedBy;
-        this.imageUrl = imageUrl;
+        this.imageUrls = imageUrls;
         this.sold = false;
     }
+
     
-    // Getters and Setters
+    public List<String> getImageUrls() {
+        return imageUrls;
+    }
+
+    public void setImageUrls(List<String> imageUrls) {
+        this.imageUrls = imageUrls;
+    }
+
+    public void addImageUrl(String imageUrl) {
+        this.imageUrls.add(imageUrl);
+    }
+
+    // Existing getters and setters...
+    
     public Long getId() {
         return id;
     }
@@ -109,14 +129,6 @@ public class Item {
         this.listedBy = listedBy;
     }
 
-    public String getImageUrl() {
-        return imageUrl;
-    }
-
-    public void setImageUrl(String imageUrl) {
-        this.imageUrl = imageUrl;
-    }
-    
     public boolean isSold() {
         return sold;
     }

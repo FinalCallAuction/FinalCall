@@ -1,36 +1,67 @@
-// src/components/ItemDetail.js
-
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { authFetch } from '../utils/authFetch';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { AuthContext } from '../context/AuthContext';
+import { Carousel } from 'react-responsive-carousel';
+import 'react-responsive-carousel/lib/styles/carousel.min.css'; // Import carousel styles
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 
 const ItemDetail = () => {
-  const { id } = useParams(); // Get the item ID from the route
+  const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useContext(AuthContext);
-  const [item, setItem] = useState(null);
-  const [biddingHistory, setBiddingHistory] = useState([]);
-  const [timeLeft, setTimeLeft] = useState('');
-  const [error, setError] = useState('');
-  const [currentBidder, setCurrentBidder] = useState(null);
+
+  // Consolidated state with default values to prevent undefined access
+  const [state, setState] = useState({
+    item: null,
+    biddingHistory: [],
+    timeLeft: '',
+    error: '',
+    isEditing: false,
+    newImageFiles: [],
+  });
+
+  const { item, biddingHistory, timeLeft, error, isEditing, newImageFiles } = state;
+
+  // Fetch item details and initialize bidding history
+  useEffect(() => {
+    const fetchData = async () => {
+      await fetchItemDetails();
+      // Initialize bidding history with a stub or fetch actual history
+      setState((prev) => ({
+        ...prev,
+        biddingHistory: [
+          {
+            bidderUsername: 'stubUser1',
+            amount: 100.0,
+            timestamp: new Date().toISOString(),
+          },
+        ],
+      }));
+    };
+
+    fetchData();
+
+    // Set up a 30-second interval for fetching fresh item data
+    const fetchInterval = setInterval(() => {
+      fetchItemDetails();
+    }, 30000); // Fetch every 30 seconds
+
+    return () => clearInterval(fetchInterval);
+  }, [id]); // Depend only on 'id'
 
   useEffect(() => {
-    fetchItemDetails();
-    // Stubbed bidding history for now
-    setBiddingHistory([{
-      bidderUsername: 'stubUser1',
-      amount: 100.0,
-      timestamp: new Date().toISOString(),
-    }]);
-    const timer = setInterval(() => {
+    // Set up a 1-second interval for updating the timer visually
+    const timerInterval = setInterval(() => {
       updateTimeLeft();
-    }, 1000); // Update every second
-    return () => clearInterval(timer);
-  }, [id, item]);
+    }, 1000); // Update timer every second
 
-  const fetchItemDetails = async () => {
+    return () => clearInterval(timerInterval);
+  }, [item?.auctionEndTime]); // Depend on auction end time so that interval restarts if auction end time changes
+
+  // Fetch item details and update state in a single call
+  const fetchItemDetails = useCallback(async () => {
     try {
       const response = await authFetch(`http://localhost:8082/api/items/${id}`, {
         method: 'GET',
@@ -38,44 +69,149 @@ const ItemDetail = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setItem(data);
-        setCurrentBidder(data.currentBidder);
-        updateTimeLeft(data.auctionEndTime);
+        // Ensure imageUrls is an array to prevent undefined access
+        const imageUrls = Array.isArray(data.imageUrls) ? data.imageUrls : [];
+        setState((prev) => ({
+          ...prev,
+          item: { ...data, imageUrls }, // Merge data with imageUrls
+          timeLeft: calculateTimeLeft(data.auctionEndTime),
+        }));
       } else {
         const errorMsg = await response.text();
-        setError(errorMsg);
+        setState((prev) => ({ ...prev, error: errorMsg }));
       }
     } catch (err) {
-      setError('Failed to fetch item details.');
+      setState((prev) => ({ ...prev, error: 'Failed to fetch item details.' }));
       console.error('Fetch Item Details Error:', err);
     }
-  };
+  }, [id]);
 
-  const updateTimeLeft = (endTimeParam) => {
-    const endTime = endTimeParam || item?.auctionEndTime;
-    if (!endTime) {
-      setTimeLeft('No End Time');
-      return;
-    }
+  // Calculate time left based on auction end time
+  const calculateTimeLeft = useCallback((endTime) => {
+    if (!endTime) return 'No End Time';
 
     const now = new Date();
     const auctionEndDate = parseISO(endTime);
     const difference = auctionEndDate - now;
 
     if (difference <= 0) {
-      setTimeLeft('Auction Ended');
+      return 'Auction Ended';
     } else {
       const days = Math.floor(difference / (1000 * 60 * 60 * 24));
       const hours = Math.floor((difference / (1000 * 60 * 60)) % 24);
       const minutes = Math.floor((difference / 1000 / 60) % 60);
       const seconds = Math.floor((difference / 1000) % 60);
 
-      setTimeLeft(
-        `${days}d ${hours}h ${minutes}m ${seconds}s`
-      );
+      return `${days}d ${hours}h ${minutes}m ${seconds}s`;
     }
-  };
+  }, []);
 
+  // Update time left
+  const updateTimeLeft = useCallback(() => {
+    if (item?.auctionEndTime) {
+      const newTimeLeft = calculateTimeLeft(item.auctionEndTime);
+      setState((prev) => ({ ...prev, timeLeft: newTimeLeft }));
+    }
+  }, [item, calculateTimeLeft]);
+
+  // Handle drag end for image reordering
+  const onDragEnd = useCallback((result) => {
+    if (!result.destination || !item?.imageUrls) return;
+
+    const reorderedImages = Array.from(item.imageUrls);
+    const [movedImage] = reorderedImages.splice(result.source.index, 1);
+    reorderedImages.splice(result.destination.index, 0, movedImage);
+
+    setState((prev) => ({
+      ...prev,
+      item: { ...prev.item, imageUrls: reorderedImages },
+    }));
+  }, [item]);
+
+  // Handle image deletion
+  const handleDeleteImage = useCallback((index) => {
+    if (!item?.imageUrls) return;
+
+    const updatedImages = item.imageUrls.filter((_, i) => i !== index);
+    setState((prev) => ({
+      ...prev,
+      item: { ...prev.item, imageUrls: updatedImages },
+    }));
+  }, [item]);
+
+  // Handle new image file selection
+  const handleNewImageChange = useCallback((event) => {
+    setState((prev) => ({ ...prev, newImageFiles: event.target.files }));
+  }, []);
+
+  // Handle uploading new images
+  const handleUploadNewImages = useCallback(async () => {
+    if (newImageFiles.length === 0) {
+      alert('Please select images to upload.');
+      return;
+    }
+
+    const formData = new FormData();
+    for (let i = 0; i < newImageFiles.length; i++) {
+      formData.append('images', newImageFiles[i]);
+    }
+
+    try {
+      const response = await authFetch(`http://localhost:8082/api/items/${id}/upload-image`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const updatedImageUrls = await response.json();
+        alert('Images uploaded successfully!');
+        setState((prev) => ({
+          ...prev,
+          item: { ...prev.item, imageUrls: updatedImageUrls },
+          newImageFiles: [],
+        }));
+      } else {
+        const errorMsg = await response.text();
+        setState((prev) => ({ ...prev, error: `Failed to upload images: ${errorMsg}` }));
+      }
+    } catch (err) {
+      setState((prev) => ({ ...prev, error: 'An error occurred while uploading images.' }));
+      console.error('Upload Images Error:', err);
+    }
+  }, [id, newImageFiles]);
+
+  // Handle saving changes after editing images
+  const handleSaveChanges = useCallback(async () => {
+    if (!item?.imageUrls) return;
+
+    try {
+      const response = await authFetch(`http://localhost:8082/api/items/${id}/update-images`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(item.imageUrls), // Send updated images array
+      });
+
+      if (response.ok) {
+        const updatedImageUrls = await response.json(); // Receive the updated image URLs from the server
+        alert('Images updated successfully!');
+        setState((prev) => ({
+          ...prev,
+          isEditing: false,
+          item: { ...prev.item, imageUrls: updatedImageUrls },
+        }));
+      } else {
+        const errorMsg = await response.text();
+        setState((prev) => ({ ...prev, error: `Failed to save changes: ${errorMsg}` }));
+      }
+    } catch (err) {
+      setState((prev) => ({ ...prev, error: 'An error occurred while saving changes.' }));
+      console.error('Save Changes Error:', err);
+    }
+  }, [id, item?.imageUrls]);
+
+  // Render error state
   if (error) {
     return (
       <div className="container mx-auto px-4 py-6">
@@ -96,6 +232,7 @@ const ItemDetail = () => {
     );
   }
 
+  // Render loading state
   if (!item) {
     return (
       <div className="container mx-auto px-4 py-6">
@@ -116,27 +253,72 @@ const ItemDetail = () => {
         {/* Image Section */}
         <div className="md:w-1/2">
           {item.imageUrls && item.imageUrls.length > 0 ? (
-            <div className="flex flex-wrap">
-              {item.imageUrls.map((url, index) => (
-                <img
-                  key={index}
-                  src={`http://localhost:8082${url}`}
-                  alt={`${item.name} ${index + 1}`}
-                  className="w-full md:w-1/2 h-64 object-cover rounded mb-4"
-                  onError={(e) => {
-                    console.error(`Failed to load image: http://localhost:8082${url}`);
-                    e.target.onerror = null;
-                    e.target.src = 'https://via.placeholder.com/300';
-                  }}
-                />
-              ))}
-            </div>
+            isEditing ? (
+              <DragDropContext onDragEnd={onDragEnd}>
+                <Droppable droppableId="images">
+                  {(provided) => (
+                    <div {...provided.droppableProps} ref={provided.innerRef}>
+                      {item.imageUrls.map((url, index) => (
+                        <Draggable key={url} draggableId={url} index={index}>
+                          {(provided) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              className="relative mb-4"
+                            >
+                              <img
+                                src={`http://localhost:8082${url}`}
+                                alt={`${item.name} ${index + 1}`}
+                                className="w-full h-64 object-cover rounded"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteImage(index)}
+                                className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 hover:bg-red-700 focus:outline-none"
+                                title="Delete Image"
+                              >
+                                &times;
+                              </button>
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
+            ) : (
+              <Carousel showThumbs={false} showStatus={false} infiniteLoop useKeyboardArrows dynamicHeight>
+                {item.imageUrls.map((url, index) => (
+                  <div key={index}>
+                    <img
+                      src={`http://localhost:8082${url}`}
+                      alt={`${item.name} ${index + 1}`}
+                      className="object-contain h-64 w-full"
+                    />
+                  </div>
+                ))}
+              </Carousel>
+            )
           ) : (
             <img
               src="https://via.placeholder.com/600x400"
               alt="Placeholder"
               className="w-full h-96 object-cover rounded"
             />
+          )}
+          {isEditing && (
+            <div className="mt-4">
+              <input type="file" multiple onChange={handleNewImageChange} className="mb-2" />
+              <button
+                onClick={handleUploadNewImages}
+                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+              >
+                Upload New Images
+              </button>
+            </div>
           )}
         </div>
 
@@ -156,7 +338,7 @@ const ItemDetail = () => {
             <strong>Current Bid:</strong> ${item.currentBid.toFixed(2)}
           </p>
           <p className="mb-2">
-            <strong>Current Bidder:</strong> {currentBidder || 'No bids yet'}
+            <strong>Current Bidder:</strong> {item.currentBidder || 'No bids yet'}
           </p>
           <p className="mb-2">
             <strong>Listed By:</strong> {item.listedBy}
@@ -164,6 +346,28 @@ const ItemDetail = () => {
           <p className="mb-2">
             <strong>Time Left:</strong> {timeLeft}
           </p>
+          <button
+            onClick={() => navigate(`/items/${id}/payment`)}
+            className="mt-4 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+          >
+            Make Payment
+          </button>
+          {user && user.username === item.listedBy && (
+            <button
+              onClick={() => setState((prev) => ({ ...prev, isEditing: !prev.isEditing }))}
+              className="ml-4 mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            >
+              {isEditing ? 'Finish Editing' : 'Edit'}
+            </button>
+          )}
+          {isEditing && (
+            <button
+              onClick={handleSaveChanges}
+              className="ml-4 mt-4 px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+            >
+              Save Changes
+            </button>
+          )}
         </div>
       </div>
 

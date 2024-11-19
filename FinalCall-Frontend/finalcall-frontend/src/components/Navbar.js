@@ -20,10 +20,7 @@ const Navbar = () => {
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target)
-      ) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setDropdownOpen(false);
       }
     };
@@ -48,39 +45,29 @@ const Navbar = () => {
         <div className="relative" ref={dropdownRef}>
           {!user ? (
             <>
-              <Link
-                to="/login"
-                className="mr-4 text-gray-700 hover:text-blue-600"
-              >
+              <Link to="/login" className="mr-4 text-gray-700 hover:text-blue-600">
                 Login
               </Link>
-              <Link
-                to="/register"
-                className="mr-4 text-gray-700 hover:text-green-600"
-              >
+              <Link to="/register" className="mr-4 text-gray-700 hover:text-green-600">
                 Register
               </Link>
-              <Link
-                to="/items"
-                className="text-gray-700 hover:text-gray-900"
-              >
+              <Link to="/items" className="text-gray-700 hover:text-gray-900">
                 Browse Items
               </Link>
             </>
           ) : (
             <>
-              <Link
-                to="/create-item"
-                className="mr-4 text-gray-700 hover:text-yellow-600"
-              >
+              <Link to="/create-item" className="mr-4 text-gray-700 hover:text-yellow-600">
                 List Item
               </Link>
-              <Link
-                to="/profile"
-                className="mr-4 text-gray-700 hover:text-blue-600"
-              >
+              <Link to="/profile" className="mr-4 text-gray-700 hover:text-blue-600">
                 Profile
               </Link>
+              {user.username === 'admin' && (
+                <Link to="/admin" className="mr-4 text-gray-700 hover:text-red-600">
+                  Admin Panel
+                </Link>
+              )}
               <button
                 onClick={toggleDropdown}
                 className="relative text-gray-700 hover:text-blue-600 focus:outline-none"

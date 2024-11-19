@@ -1,5 +1,3 @@
-// src/components/ItemsPage.js
-
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
@@ -7,7 +5,7 @@ import { authFetch } from '../utils/authFetch';
 
 const ItemsPage = () => {
   const { user } = useContext(AuthContext);
-  const navigate = useNavigate(); // If not used, remove
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [error, setError] = useState('');
 
@@ -31,11 +29,7 @@ const ItemsPage = () => {
 
   useEffect(() => {
     fetchItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Remove unused functions if not implemented
-  // If handleAcceptBid and handlePlaceBid are implemented, keep them; otherwise, remove
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -54,9 +48,10 @@ const ItemsPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {items.map((item) => (
             <div key={item.id} className="bg-white p-4 rounded shadow">
-              {item.imageUrl ? (
+              {/* Use the imageUrls array to get the first image */}
+              {item.imageUrls && item.imageUrls.length > 0 ? (
                 <img
-                  src={`http://localhost:8082${item.imageUrl}`}
+                  src={`http://localhost:8082${item.imageUrls[0]}`}
                   alt={item.name}
                   className="w-full h-48 object-cover rounded mb-4 cursor-pointer"
                   onClick={() => navigate(`/items/${item.id}`)}
@@ -82,21 +77,9 @@ const ItemsPage = () => {
                 <strong>Current Bid:</strong> ${item.currentBid.toFixed(2)}
               </p>
               <p>
-                <strong>Time Left:</strong> {new Date(item.auctionEndTime) > new Date() ? 'Ongoing' : 'Ended'}
+                <strong>Time Left:</strong>{' '}
+                {new Date(item.auctionEndTime) > new Date() ? 'Ongoing' : 'Ended'}
               </p>
-              {/* Uncomment and implement bidding functions if necessary */}
-              {/* <button
-                onClick={() => handlePlaceBid(item.id)}
-                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-              >
-                Place Bid
-              </button>
-              <button
-                onClick={() => handleAcceptBid(item.id)}
-                className="mt-4 ml-2 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-              >
-                Accept Bid
-              </button> */}
             </div>
           ))}
         </div>
