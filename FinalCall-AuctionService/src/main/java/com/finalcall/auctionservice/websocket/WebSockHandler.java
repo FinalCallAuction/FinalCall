@@ -1,6 +1,5 @@
 /**
  * A basic WebSocket handler that echoes received messages.
- * Likely used for testing or as a placeholder.
  */
 package com.finalcall.auctionservice.websocket;
 
@@ -10,7 +9,6 @@ import java.io.IOException;
 
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
-import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.WebSocketMessage;
 import org.springframework.web.socket.WebSocketSession;
 
@@ -26,12 +24,10 @@ public class WebSockHandler extends TextWebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
-        // Performs action when new websocket is established
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
-        // Performs action when websocket connection is closed
     }
 
     @Override

@@ -125,7 +125,6 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <!-- Optional: Configure additional plugin settings here -->
             </plugin>
         </plugins>
     </build>

@@ -31,9 +31,9 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Allow all OPTIONS requests
-                .requestMatchers("/api/auth/**").permitAll() // Allow auth endpoints
-                .anyRequest().authenticated() // All other requests require authentication
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers("/api/auth/**").permitAll()
+                .anyRequest().authenticated() 
             )
             .oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(Customizer.withDefaults())
@@ -56,7 +56,7 @@ public class SecurityConfig {
             publicKeyContent = publicKeyContent
                     .replace("-----BEGIN PUBLIC KEY-----", "")
                     .replace("-----END PUBLIC KEY-----", "")
-                    .replaceAll("\\s", ""); // Remove all whitespace (including newlines)
+                    .replaceAll("\\s", ""); 
 
             byte[] decoded = Base64.getDecoder().decode(publicKeyContent);
             X509EncodedKeySpec keySpec = new X509EncodedKeySpec(decoded);

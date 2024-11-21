@@ -27,7 +27,7 @@ public class SecurityConfig {
         http
             .csrf().disable()
             .authorizeHttpRequests()
-                .requestMatchers("/api/payments/**").permitAll() // Adjust as needed
+                .requestMatchers("/api/payments/**").permitAll() // will be adjusted later
                 .anyRequest().authenticated()
             .and()
             .formLogin().disable();

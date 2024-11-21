@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/api/payments")
-@CrossOrigin(origins = "http://localhost:3000") // Adjust as needed
+@CrossOrigin(origins = "http://localhost:3000")
 public class PaymentController {
 
     @Autowired
@@ -39,9 +39,6 @@ public class PaymentController {
 
             // Process payment
             Payment payment = paymentService.processPayment(paymentRequest);
-
-            // Optionally, notify AuctionService about the payment
-            // For a mock setup, this can be simulated or handled via frontend
 
             return ResponseEntity.ok(payment);
         } catch (Exception e) {

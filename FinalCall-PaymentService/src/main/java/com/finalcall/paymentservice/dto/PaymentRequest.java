@@ -10,7 +10,6 @@ public class PaymentRequest {
     private Long userId;
     private Long itemId;
 
-    // Constructors
     public PaymentRequest() {}
 
     public PaymentRequest(Double amount, String currency, String paymentMethodId, Long userId, Long itemId) {
@@ -20,8 +19,6 @@ public class PaymentRequest {
         this.userId = userId;
         this.itemId = itemId;
     }
-
-    // Getters and Setters
 
     public Double getAmount() {
         return amount;
@@ -62,8 +59,6 @@ public class PaymentRequest {
     public void setItemId(Long itemId) {
         this.itemId = itemId;
     }
-
-    // Additional Utility Methods (if required)
 
     @Override
     public String toString() {

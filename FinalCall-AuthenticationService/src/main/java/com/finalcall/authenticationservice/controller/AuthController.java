@@ -36,7 +36,7 @@ public class AuthController {
     public ResponseEntity<?> registerUser(@RequestBody User user) {
         try {
             User registeredUser = userService.registerUser(user);
-            String token = jwtConfig.generateToken(registeredUser); // Pass User object
+            String token = jwtConfig.generateToken(registeredUser);
             UserDTO userDTO = new UserDTO(
                 registeredUser.getId(),
                 registeredUser.getUsername(),
@@ -79,7 +79,7 @@ public class AuthController {
             return ResponseEntity.status(401).body("Credentials do not match");
         }
         User authenticatedUser = authenticatedUserOpt.get();
-        String token = jwtConfig.generateToken(authenticatedUser); // Pass User object
+        String token = jwtConfig.generateToken(authenticatedUser);
         UserDTO userDTO = new UserDTO(
             authenticatedUser.getId(),
             authenticatedUser.getUsername(),

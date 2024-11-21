@@ -13,7 +13,6 @@ public class AuctionDTO {
     private Long sellerId;
     private LocalDateTime startTime;
 
-    // Constructors
     public AuctionDTO() {}
 
     public AuctionDTO(Long catalogueItemId, String auctionType, Double startingBidPrice, Double currentBidPrice, LocalDateTime auctionEndTime, Long sellerId, LocalDateTime startTime) {
@@ -25,8 +24,6 @@ public class AuctionDTO {
         this.sellerId = sellerId;
         this.startTime = startTime;
     }
-
-    // Getters and Setters
 
     public Long getCatalogueItemId() {
         return catalogueItemId;

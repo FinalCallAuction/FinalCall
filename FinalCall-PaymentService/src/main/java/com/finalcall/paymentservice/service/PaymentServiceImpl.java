@@ -33,27 +33,22 @@ public class PaymentServiceImpl implements PaymentService {
             throw new Exception("Payment amount must be greater than zero.");
         }
 
-        // Validate currency
         if (paymentRequest.getCurrency() == null || paymentRequest.getCurrency().isEmpty()) {
             throw new Exception("Currency is required.");
         }
 
-        // Validate userId
         if (paymentRequest.getUserId() == null || paymentRequest.getUserId() <= 0) {
             throw new Exception("Valid userId is required.");
         }
 
-        // Validate itemId
         if (paymentRequest.getItemId() == null || paymentRequest.getItemId() <= 0) {
             throw new Exception("Valid itemId is required.");
         }
 
-        // Validate paymentMethodId
         if (paymentRequest.getPaymentMethodId() == null || paymentRequest.getPaymentMethodId().isEmpty()) {
             throw new Exception("Payment method ID is required.");
         }
 
-        // Deterministically set payment status to "COMPLETED"
         String status = "COMPLETED";
 
         // Create and save the payment record

@@ -15,7 +15,7 @@ public class WebConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("*") // For development; restrict in production
+                .allowedOrigins("*") // For development, will be restricted later
                 .allowedMethods("*")
                 .allowedHeaders("*");
     }
@@ -23,7 +23,6 @@ public class WebConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // Ensure the path ends with a slash
         if (!imageUploadDir.endsWith("/")) {
             imageUploadDir += "/";
         }

@@ -25,7 +25,6 @@ public class User {
     @Column(nullable = false)
     private String lastName;
 
-    // Map 'streetAddress' to 'STREET' column
     @Column(name = "STREET", nullable = false)
     private String streetAddress;
 
@@ -62,8 +61,6 @@ public class User {
         this.isSeller = isSeller;
     }
 
-    // Getters and Setters
-
     public Long getId() {
         return id;
     }
@@ -84,7 +81,7 @@ public class User {
         return password;
     }
 
-    // It's recommended to avoid exposing the password via getter
+    // CHANGE ME OH THIS IS AWFULLY UNSAFE
     public void setPassword(String password) {
         this.password = password;
     }

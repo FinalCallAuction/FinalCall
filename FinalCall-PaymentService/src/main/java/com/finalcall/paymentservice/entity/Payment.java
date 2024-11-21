@@ -44,8 +44,6 @@ public class Payment {
     @Column(nullable = false)
     private LocalDateTime timestamp;
 
-    // Manually implemented setter methods (if Lombok is not working)
-
     public void setUserId(Long userId) {
         this.userId = userId;
     }

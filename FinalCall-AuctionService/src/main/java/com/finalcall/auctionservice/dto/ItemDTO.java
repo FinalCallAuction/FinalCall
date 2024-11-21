@@ -11,13 +11,12 @@ import java.util.List;
 public class ItemDTO {
     private Long id;
     private String name;
-    private String description; // Ensure this field is now present
-    private Long listedBy; // Renamed from sellerId to listedBy
-    private List<String> imageUrls; // Changed from String to List<String>
-    private String keywords; // Ensure this field is now present
-    private Double startingBidPrice; // Renamed from startingBid to startingBidPrice
+    private String description; 
+    private Long listedBy; 
+    private List<String> imageUrls; 
+    private String keywords;
+    private Double startingBidPrice; 
 
-    // Constructors
     public ItemDTO() {}
 
     public ItemDTO(Long id, String name, String description, Long listedBy, List<String> imageUrls, String keywords, Double startingBidPrice) {
@@ -30,7 +29,6 @@ public class ItemDTO {
         this.startingBidPrice = startingBidPrice;
     }
 
-    // Getters and setters for each field
 
     public Long getId() {
         return id;
@@ -48,11 +46,11 @@ public class ItemDTO {
         this.name = name;
     }
 
-    public String getDescription() { // Added
+    public String getDescription() {
         return description;
     }
 
-    public void setDescription(String description) { // Added
+    public void setDescription(String description) {
         this.description = description;
     }
 
@@ -72,21 +70,20 @@ public class ItemDTO {
         this.imageUrls = imageUrls;
     }
     
-    public String getKeywords() { // Added
+    public String getKeywords() {
         return keywords;
     }
 
-    public void setKeywords(String keywords) { // Added
+    public void setKeywords(String keywords) {
         this.keywords = keywords;
     }
 
-    public Double getStartingBidPrice() { // Added
+    public Double getStartingBidPrice() { 
         return startingBidPrice;
     }
 
-    public void setStartingBidPrice(Double startingBidPrice) { // Added
+    public void setStartingBidPrice(Double startingBidPrice) {
         this.startingBidPrice = startingBidPrice;
     }
 
-    // Optionally, override toString(), equals(), and hashCode() methods
 }

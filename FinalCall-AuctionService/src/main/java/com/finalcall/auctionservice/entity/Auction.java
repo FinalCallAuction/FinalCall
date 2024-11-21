@@ -16,8 +16,8 @@ public class Auction {
     private Long id;
 
     @Column(name = "catalogue_item_id", nullable = false, unique = true)
-    private Long catalogueItemId; // Reference to Catalogue Service's item ID
-
+    private Long catalogueItemId;
+    
     @Enumerated(EnumType.STRING)
     @Column(name = "auction_type", nullable = false)
     private AuctionType auctionType;
@@ -41,7 +41,6 @@ public class Auction {
     @Column(name = "start_time", nullable = false)
     private LocalDateTime startTime;
 
-    // Constructors
     public Auction() {}
 
     public Auction(Long catalogueItemId, AuctionType auctionType, Double startingBidPrice, Double currentBidPrice, LocalDateTime auctionEndTime, Long sellerId, LocalDateTime startTime) {
@@ -54,8 +53,6 @@ public class Auction {
         this.sellerId = sellerId;
         this.startTime = startTime;
     }
-
-    // Getters and Setters
 
     public Long getId() {
         return id;

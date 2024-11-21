@@ -17,15 +17,11 @@ import com.finalcall.auctionservice.websocket.AuctionWSHandler;
 import feign.FeignException;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
@@ -207,27 +203,25 @@ public class AuctionController {
      */
     @PostMapping("/{itemId}/new-auction")
     public ResponseEntity<?> createNewAuction(@PathVariable Long itemId, @RequestBody Auction newAuction) {
-        // Check if auction already exists for this item
         Optional<Auction> auctionOp = auctionRepository.findByCatalogueItemId(itemId);
         if (auctionOp.isPresent()) {
             return new ResponseEntity<>("Auction already exists for this item", HttpStatus.CONFLICT);
         }
 
         try {
-            // Check if item exists using CatalogueServiceClient
             ItemDTO itemDTO = catalogueServiceClient.getItemById(itemId);
             if (itemDTO == null) {
                 return new ResponseEntity<>("Item not found.", HttpStatus.NOT_FOUND);
             }
 
-            // Set auction details based on the request and item details
+            // Set auction details
             newAuction.setCatalogueItemId(itemId);
             newAuction.setSellerId(itemDTO.getListedBy()); // Correctly retrieves listedBy
             newAuction.setStatus(AuctionStatus.ACTIVE);
             newAuction.setStartTime(LocalDateTime.now());
             newAuction.setAuctionEndTime(newAuction.getAuctionEndTime() != null ? newAuction.getAuctionEndTime() : LocalDateTime.now().plusDays(1));
 
-            // Calculate starting bid from AuctionService's startingBid or set default
+            // Calculate starting bid
             if (newAuction.getStartingBidPrice() == null) {
                 newAuction.setStartingBidPrice(itemDTO.getStartingBidPrice()); // Correctly retrieves startingBidPrice
             }
@@ -253,13 +247,13 @@ public class AuctionController {
             return new ResponseEntity<>("Auction created successfully", HttpStatus.CREATED);
 
         } catch (FeignException.NotFound e) {
-            // Thrown when Catalogue Service does not find the item
+            // When Catalogue Service does not find the item...
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Item not found.");
         } catch (IllegalArgumentException e) {
-            // Thrown when AuctionType is invalid
+            // When AuctionType is invalid...
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid auction type.");
         } catch (Exception e) {
-            // General exception handling
+            // Usual exception handling
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating auction.");
         }
     }
@@ -282,7 +276,7 @@ public class AuctionController {
 
             Auction auction = auctionOptional.get();
 
-            // Check if auction is active and forward type
+            // Check if auction is active and get type
             if (auction.getAuctionType() != AuctionType.FORWARD || auction.getStatus() != AuctionStatus.ACTIVE) {
                 return new ResponseEntity<>("Item not available for bidding.", HttpStatus.BAD_REQUEST);
             }

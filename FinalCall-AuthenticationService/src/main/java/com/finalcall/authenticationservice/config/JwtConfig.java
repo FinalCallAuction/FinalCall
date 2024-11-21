@@ -17,7 +17,6 @@ import java.security.interfaces.RSAPrivateKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.time.Instant;
 import java.util.Date;
-import java.util.Map;
 import java.util.Arrays;
 import java.util.Base64;
 
@@ -67,7 +66,6 @@ public class JwtConfig {
                     .issueTime(Date.from(Instant.now()))
                     .expirationTime(Date.from(Instant.now().plusSeconds(jwtExpirationInSeconds)));
 
-         // Add additional claims
             claimsBuilder.claim("id", user.getId());
             claimsBuilder.claim("email", user.getEmail());
             claimsBuilder.claim("isSeller", user.getIsSeller());
@@ -77,8 +75,6 @@ public class JwtConfig {
                 claimsBuilder.claim("roles", Arrays.asList("BUYER"));
             }
 
-            // Add other necessary claims as needed
-
             JWTClaimsSet claims = claimsBuilder.build();
 
             // Create the signed JWT
@@ -87,13 +83,10 @@ public class JwtConfig {
                     claims
             );
 
-            // Sign the JWT
             signedJWT.sign(signer);
 
-            // Serialize the JWT to a compact form
             return signedJWT.serialize();
         } catch (Exception e) {
-            // Wrap checked exceptions in a RuntimeException
             throw new RuntimeException("Error generating JWT token", e);
         }
     }

@@ -35,10 +35,9 @@ public class JwtTokenProvider {
         claims.put("email", user.getEmail());
         claims.put("isSeller", user.getIsSeller());
 
-        // Add 'roles' claim based on user's role
         if (user.getIsSeller()) {
             claims.put("roles", Arrays.asList("SELLER"));
-        } else {
+        } else { // the source of my pain
             claims.put("roles", Arrays.asList("BUYER"));
         }
 

@@ -29,12 +29,11 @@ public class Item {
     private List<String> imageUrls = new ArrayList<>();
 
     @Column(name = "listed_by", nullable = false)
-    private Long listedBy; // User ID
+    private Long listedBy; 
 
-    @Column(name = "starting_bid_price") // Added
+    @Column(name = "starting_bid_price")
     private Double startingBidPrice;
 
-    // Constructors
     public Item() {
         this.randomId = UUID.randomUUID().toString().substring(0, 8);
     }
@@ -48,9 +47,6 @@ public class Item {
         this.keywords = keywords;
         this.startingBidPrice = startingBidPrice;
     }
-
-
-    // Getters and Setters
 
     public Long getId() {
         return id;
@@ -73,19 +69,19 @@ public class Item {
     }
 
     
-    public String getDescription() { // Added
+    public String getDescription() {
         return description;
     }
 
-    public void setDescription(String description) { // Added
+    public void setDescription(String description) { 
         this.description = description;
     }
 
-    public String getKeywords() { // Added
+    public String getKeywords() {
         return keywords;
     }
 
-    public void setKeywords(String keywords) { // Added
+    public void setKeywords(String keywords) { 
         this.keywords = keywords;
     }
 
@@ -109,11 +105,11 @@ public class Item {
         this.listedBy = listedBy;
     }
 
-    public Double getStartingBidPrice() { // Added
+    public Double getStartingBidPrice() {
         return startingBidPrice;
     }
 
-    public void setStartingBidPrice(Double startingBidPrice) { // Added
+    public void setStartingBidPrice(Double startingBidPrice) {
         this.startingBidPrice = startingBidPrice;
     }
 }

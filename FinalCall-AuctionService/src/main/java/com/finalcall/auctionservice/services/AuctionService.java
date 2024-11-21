@@ -4,7 +4,6 @@ package com.finalcall.auctionservice.services;
 
 import com.finalcall.auctionservice.dto.AuctionDTO;
 import com.finalcall.auctionservice.entity.Auction;
-import com.finalcall.auctionservice.entity.AuctionStatus;
 import com.finalcall.auctionservice.entity.AuctionType;
 import com.finalcall.auctionservice.repository.AuctionRepository;
 

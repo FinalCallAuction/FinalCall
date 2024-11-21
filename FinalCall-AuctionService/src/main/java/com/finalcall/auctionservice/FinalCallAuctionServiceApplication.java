@@ -7,7 +7,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 
 @SpringBootApplication
-@EnableFeignClients(basePackages = "com.finalcall.auctionservice.services") // Ensure this matches your Feign client package
+@EnableFeignClients(basePackages = "com.finalcall.auctionservice.services") 
 public class FinalCallAuctionServiceApplication {
 
     public static void main(String[] args) {

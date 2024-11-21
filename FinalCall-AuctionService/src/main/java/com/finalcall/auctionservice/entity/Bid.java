@@ -20,7 +20,6 @@ public class Bid {
     private Long auctionId;
     private Long bidderId;
 
-    // Constructors
     public Bid() {}
 
     public Bid(Double amount, Long auctionId, Long bidderId) {
@@ -28,8 +27,6 @@ public class Bid {
         this.auctionId = auctionId;
         this.bidderId = bidderId;
     }
-
-    // Getters and Setters
 
     public Long getId() {
         return id;

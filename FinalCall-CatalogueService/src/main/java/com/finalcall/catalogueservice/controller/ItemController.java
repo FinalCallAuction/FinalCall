@@ -52,7 +52,7 @@ public class ItemController {
     private String imageUploadDir;
 
     @Value("${auction.service.url}")
-    private String auctionServiceUrl; // http://localhost:8084
+    private String auctionServiceUrl; 
 
     public ItemController() {
         logger.info("ItemController initialized successfully.");
@@ -77,14 +77,13 @@ public class ItemController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User ID not found in token.");
         }
 
-        // Create a new item entity and set fields
         Item item = new Item();
         item.setName(itemRequest.getName());
         item.setDescription(itemRequest.getDescription());
         item.setListedBy(userId);
         item.setStartingBidPrice(itemRequest.getStartingBid());
 
-        // Save the item in CatalogueService database
+        // Save the item in CatalogueService 
         Item savedItem = itemRepository.save(item);
 
         // Prepare AuctionDTO to send to AuctionService
@@ -130,7 +129,7 @@ public class ItemController {
             @RequestParam("images") MultipartFile[] imageFiles,
             @AuthenticationPrincipal Jwt principal) {
         try {
-            Long userId = Long.parseLong(principal.getSubject()); // Assuming subject is userId
+            Long userId = Long.parseLong(principal.getSubject());
 
             Optional<Item> itemOpt = itemService.getItemById(id);
             if (itemOpt.isEmpty()) {
@@ -149,7 +148,7 @@ public class ItemController {
                 Path itemImageDirAbsolutePath = Paths.get(itemImageDirPath).toAbsolutePath();
                 File itemImageDir = itemImageDirAbsolutePath.toFile();
 
-                // Check if the image directory exists and create it if necessary
+                // Check if image directory exists, create if necessary
                 if (!itemImageDir.exists()) {
                     if (!itemImageDir.mkdirs()) {
                         logger.error("Failed to create upload directory at path: {}", itemImageDirPath);
@@ -172,13 +171,13 @@ public class ItemController {
                                 ? originalFilename.substring(originalFilename.lastIndexOf("."))
                                 : ".png"; // Default to .png if no extension
 
-                        // Generate a new image name with a sequential index
+                        // Generate new image name with a sequential index
                         String newImageName = item.getRandomId() + "-" + (existingImageCount + i + 1) + extension;
                         Path imagePath = itemImageDirAbsolutePath.resolve(newImageName);
                         File dest = imagePath.toFile();
-
+                        
+                        // Convert the image to PNG if necessary and save
                         try {
-                            // Convert the image to PNG if necessary and save
                             BufferedImage bufferedImage = ImageIO.read(imageFile.getInputStream());
                             if (bufferedImage == null) {
                                 logger.error("Failed to read image file: {}", imageFile.getOriginalFilename());
@@ -203,7 +202,7 @@ public class ItemController {
                 // Save the updated item with image URLs
                 itemService.saveItem(item);
                 logger.info("Updated item with image URLs: {}", item.getImageUrls());
-                return ResponseEntity.ok(item.getImageUrls()); // Return updated image URLs to the front-end
+                return ResponseEntity.ok(item.getImageUrls());
             }
 
             return ResponseEntity.badRequest().body("No images to upload.");
@@ -228,7 +227,7 @@ public class ItemController {
         @AuthenticationPrincipal Jwt principal
     ) {
         try {
-            Long userId = Long.parseLong(principal.getSubject()); // Assuming subject is userId
+            Long userId = Long.parseLong(principal.getSubject());
 
             Optional<Item> itemOpt = itemService.getItemById(id);
             if (itemOpt.isEmpty()) {
@@ -265,7 +264,6 @@ public class ItemController {
                             logger.info("Deleted image file: {}", imageFile.getAbsolutePath());
                         } else {
                             logger.warn("Failed to delete image file: {}", imageFile.getAbsolutePath());
-                            // Continue even if deletion fails
                         }
                     }
                 }

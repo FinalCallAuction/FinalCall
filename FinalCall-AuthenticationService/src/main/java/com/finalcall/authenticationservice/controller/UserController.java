@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/user")
-@CrossOrigin(origins = "http://localhost:3000") // Adjust as per frontend port
+@CrossOrigin(origins = "http://localhost:3000")
 public class UserController {
 
     @Autowired
