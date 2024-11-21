@@ -18,6 +18,7 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
+import java.util.Arrays;
 import java.util.Base64;
 
 import com.finalcall.authenticationservice.entity.User;
@@ -66,10 +67,16 @@ public class JwtConfig {
                     .issueTime(Date.from(Instant.now()))
                     .expirationTime(Date.from(Instant.now().plusSeconds(jwtExpirationInSeconds)));
 
-            // Add additional claims
+         // Add additional claims
             claimsBuilder.claim("id", user.getId());
             claimsBuilder.claim("email", user.getEmail());
             claimsBuilder.claim("isSeller", user.getIsSeller());
+            if (user.getIsSeller()) {
+                claimsBuilder.claim("roles", Arrays.asList("SELLER", "BUYER"));
+            } else {
+                claimsBuilder.claim("roles", Arrays.asList("BUYER"));
+            }
+
             // Add other necessary claims as needed
 
             JWTClaimsSet claims = claimsBuilder.build();

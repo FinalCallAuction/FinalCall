@@ -18,6 +18,8 @@ import java.security.interfaces.RSAPublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 
+import org.springframework.http.HttpMethod; // Add this import
+
 @Configuration
 public class SecurityConfig {
 
@@ -29,6 +31,7 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Allow all OPTIONS requests
                 .requestMatchers("/api/auth/**").permitAll() // Allow auth endpoints
                 .anyRequest().authenticated() // All other requests require authentication
             )
@@ -42,15 +45,18 @@ public class SecurityConfig {
     @Bean
     public JwtDecoder jwtDecoder() {
         try {
+            // Load the public key from the classpath
             ClassPathResource resource = new ClassPathResource(jwtPublicKeyPath);
             if (!resource.exists()) {
                 throw new NoSuchFileException("Public key file not found: " + jwtPublicKeyPath);
             }
 
-            String publicKeyContent = StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8)
-                    .replaceAll("\\n", "")
+            String publicKeyContent = StreamUtils.copyToString(resource.getInputStream(), StandardCharsets.UTF_8);
+            // Remove the PEM file header and footer, and decode properly
+            publicKeyContent = publicKeyContent
                     .replace("-----BEGIN PUBLIC KEY-----", "")
-                    .replace("-----END PUBLIC KEY-----", "");
+                    .replace("-----END PUBLIC KEY-----", "")
+                    .replaceAll("\\s", ""); // Remove all whitespace (including newlines)
 
             byte[] decoded = Base64.getDecoder().decode(publicKeyContent);
             X509EncodedKeySpec keySpec = new X509EncodedKeySpec(decoded);
@@ -64,4 +70,5 @@ public class SecurityConfig {
             throw new IllegalArgumentException("Failed to decode public key for JWT", e);
         }
     }
+
 }

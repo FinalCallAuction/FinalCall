@@ -31,8 +31,11 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        registry.addHandler(auctionHandler(), "/auctions/{auctionId}/update").setAllowedOrigins("*");
+        registry.addHandler(auctionHandler(), "/auctions/{auctionId}/update")
+                .setAllowedOriginPatterns("*"); 
     }
+
+
 
     @Bean
     public WebSocketHandler auctionHandler() {

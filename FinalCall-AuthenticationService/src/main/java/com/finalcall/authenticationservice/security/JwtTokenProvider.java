@@ -6,7 +6,12 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.security.PrivateKey;
 
 @Component
@@ -25,16 +30,29 @@ public class JwtTokenProvider {
      * @return The JWT token as a String.
      */
     public String generateToken(User user) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("id", user.getId());
+        claims.put("email", user.getEmail());
+        claims.put("isSeller", user.getIsSeller());
+
+        // Add 'roles' claim based on user's role
+        if (user.getIsSeller()) {
+            claims.put("roles", Arrays.asList("SELLER"));
+        } else {
+            claims.put("roles", Arrays.asList("BUYER"));
+        }
+
         Instant now = Instant.now();
-        Instant expiration = now.plus(2, ChronoUnit.HOURS);
+        Instant expiryDate = now.plus(1, ChronoUnit.DAYS);
 
         return Jwts.builder()
+                .setClaims(claims)
                 .setSubject(user.getUsername())
-                .claim("id", user.getId())
-                .claim("email", user.getEmail())
                 .setIssuedAt(Date.from(now))
-                .setExpiration(Date.from(expiration))
+                .setExpiration(Date.from(expiryDate))
                 .signWith(privateKey, SignatureAlgorithm.RS256)
                 .compact();
     }
+
+
 }

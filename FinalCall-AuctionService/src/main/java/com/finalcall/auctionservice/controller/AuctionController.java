@@ -66,21 +66,14 @@ public class AuctionController {
      * @return ResponseEntity with the created AuctionDTO or an error message.
      */
     @PostMapping("/create")
-    public void createAuction(AuctionDTO auctionDTO, String jwtToken) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.setBearerAuth(jwtToken);
-        HttpEntity<AuctionDTO> request = new HttpEntity<>(auctionDTO, headers);
-
+    public ResponseEntity<?> createAuction(@RequestBody AuctionDTO auctionDTO, @AuthenticationPrincipal Jwt principal) {
         try {
-            ResponseEntity<String> response = restTemplate.postForEntity("http://localhost:8083/api/auctions/create", request, String.class);
-            if (response.getStatusCode() == HttpStatus.OK) {
-                System.out.println("Auction created successfully");
-            } else {
-                System.out.println("Failed to create auction: " + response.getStatusCode());
-            }
-        } catch (HttpClientErrorException e) {
-            System.err.println("HTTP error while creating auction: " + e.getStatusCode());
+            AuctionDTO createdAuction = auctionService.createAuction(auctionDTO, principal);
+            return ResponseEntity.status(HttpStatus.CREATED).body(createdAuction);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid auction data: " + e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating auction: " + e.getMessage());
         }
     }
 
@@ -145,7 +138,7 @@ public class AuctionController {
      * @return List of corresponding AuctionDTOs or an error message.
      */
     @GetMapping("/by-item-ids")
-    public ResponseEntity<?> getAuctionsByCatalogueItemIds(@RequestParam List<Long> itemIds) {
+    public ResponseEntity<?> getAuctionsByCatalogueItemIds(@RequestParam("itemIds") List<Long> itemIds) {
         try {
             List<AuctionDTO> auctions = auctionService.getAuctionsByCatalogueItemIds(itemIds);
             return ResponseEntity.ok(auctions);

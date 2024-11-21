@@ -39,7 +39,7 @@ const ItemsPage = () => {
       }
 
       // Fetch auctions from Auction Service
-      const auctionsResponse = await authFetch(`http://localhost:8083/api/auctions/by-item-ids?itemIds=${itemIds.join(',')}`, {
+      const auctionsResponse = await authFetch(`http://localhost:8084/api/auctions/by-item-ids?itemIds=${itemIds.join(',')}`, {
         method: 'GET',
       });
 
@@ -65,9 +65,7 @@ const ItemsPage = () => {
 
   // Merge items and auctions
   const mergedItems = items.map(item => {
-    // Ensure that 'catalogueItemId' and 'id' are both numbers
     const auction = auctions.find(a => Number(a.catalogueItemId) === Number(item.id));
-    console.log(`Merging Item ID: ${item.id} with Auction: ${auction ? JSON.stringify(auction) : 'N/A'}`); // Debugging
     return {
       ...item,
       auctionType: auction ? auction.auctionType : 'N/A',
@@ -76,6 +74,7 @@ const ItemsPage = () => {
       auctionEndTime: auction ? auction.auctionEndTime : 'N/A',
     };
   });
+
 
   console.log('Merged Items:', mergedItems); // Debugging
 

@@ -51,8 +51,8 @@ public class ItemController {
     @Value("${image.upload.dir}")
     private String imageUploadDir;
 
-    @Value("${auction.service.url}") // e.g., http://localhost:8083
-    private String auctionServiceUrl;
+    @Value("${auction.service.url}")
+    private String auctionServiceUrl; // http://localhost:8084
 
     public ItemController() {
         logger.info("ItemController initialized successfully.");
@@ -80,7 +80,7 @@ public class ItemController {
         // Create a new item entity and set fields
         Item item = new Item();
         item.setName(itemRequest.getName());
-        item.setDescription(itemRequest.getDescription());  // Ensure description is handled
+        item.setDescription(itemRequest.getDescription());
         item.setListedBy(userId);
         item.setStartingBidPrice(itemRequest.getStartingBid());
 
@@ -94,17 +94,26 @@ public class ItemController {
         auctionDTO.setStartingBidPrice(itemRequest.getStartingBid());
         auctionDTO.setAuctionEndTime(itemRequest.getAuctionEndTime());
 
+        // Get JWT token
+        String jwtToken = principal.getTokenValue();
+
         // Send request to AuctionService
         try {
-            restTemplate.postForEntity("http://localhost:8083/api/auctions/create", auctionDTO, Void.class);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            headers.setBearerAuth(jwtToken);
+            HttpEntity<AuctionDTO> request = new HttpEntity<>(auctionDTO, headers);
+
+            restTemplate.postForEntity(auctionServiceUrl + "/api/auctions/create", request, Void.class);
         } catch (HttpClientErrorException.Forbidden e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Failed to communicate with Auction service: Unauthorized");
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to communicate with Auction service");
         }
 
-        return ResponseEntity.status(HttpStatus.CREATED).body("Item created successfully with ID: " + savedItem.getId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(savedItem);
     }
+
 
 
     /**

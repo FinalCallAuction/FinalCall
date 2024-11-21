@@ -99,33 +99,57 @@ const CreateItem = () => {
     }
 
     try {
-      // Use FormData to handle file upload
-      const formData = new FormData();
-      formData.append('name', name);
-      formData.append('startingBid', parseFloat(startingBid));
-      formData.append('auctionType', auctionType);
-      formData.append('auctionEndTime', auctionEndTime);
-      imageFiles.forEach((file) => {
-        formData.append('images', file); // Correct parameter name
-      });
+      // Create item without images
+      const itemData = {
+        name,
+        startingBid: parseFloat(startingBid),
+        auctionType,
+        auctionEndTime,
+        description: itemDetails.description, // Include description if applicable
+      };
 
       const response = await authFetch('http://localhost:8082/api/items/create', {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(itemData),
       });
 
-      if (response.ok) {
-        alert('Item listed successfully!');
-        navigate('/items');
-      } else {
+      if (!response.ok) {
         const errorMsg = await response.text();
         setError(errorMsg);
+        return;
       }
+
+      const savedItem = await response.json();
+      const itemId = savedItem.id;
+
+      // If images are selected, upload images
+      if (imageFiles.length > 0) {
+        const formData = new FormData();
+        imageFiles.forEach((file) => {
+          formData.append('images', file);
+        });
+
+        const uploadResponse = await authFetch(`http://localhost:8082/api/items/${itemId}/upload-image`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          const errorMsg = await uploadResponse.text();
+          setError(`Item created, but failed to upload images: ${errorMsg}`);
+          return;
+        }
+      }
+
+      alert('Item listed successfully!');
+      navigate('/items');
     } catch (err) {
       setError('An error occurred while listing the item.');
       console.error('Create Item Error:', err);
     }
   };
+
 
   return (
     <div className="container mx-auto px-4 py-6">
