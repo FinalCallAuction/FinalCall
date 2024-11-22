@@ -1,7 +1,8 @@
-// src/main/java/com/finalcall/catalogueservice/dto/BidRequest.java
-
 package com.finalcall.auctionservice.dto;
 
+/**
+ * Data Transfer Object for placing a bid.
+ */
 public class BidRequest {
     private Double bidAmount;
     private Long bidderId;

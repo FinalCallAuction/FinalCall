@@ -1,12 +1,17 @@
-// src/main/java/com/finalcall/auctionservice/services/CatalogueServiceClient.java
-
 package com.finalcall.auctionservice.service;
 
+import com.finalcall.auctionservice.config.FeignConfig;
 import com.finalcall.auctionservice.dto.AuctionDTO;
+import com.finalcall.auctionservice.dto.ItemDTO;
 import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-@FeignClient(name = "catalogue-service", url = "${catalogue.service.url}")
+@FeignClient(
+    name = "catalogue-service",
+    url = "${catalogue.service.url}",
+    configuration = FeignConfig.class
+)
 public interface CatalogueServiceClient {
 
     @GetMapping("/api/auctions/{id}")

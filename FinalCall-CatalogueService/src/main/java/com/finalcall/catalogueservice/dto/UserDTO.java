@@ -30,7 +30,7 @@ public class UserDTO {
         this.postalCode = postalCode;
         this.isSeller = isSeller;
     }
-
+    
     // Getters and Setters
     public Long getId() {
         return id;

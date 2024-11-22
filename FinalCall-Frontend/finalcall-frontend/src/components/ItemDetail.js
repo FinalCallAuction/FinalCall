@@ -10,19 +10,19 @@ import 'react-responsive-carousel/lib/styles/carousel.min.css';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 
 const ItemDetail = () => {
-  const { id } = useParams();
+  const { id } = useParams(); // Item ID from the URL
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext); // Current authenticated user
 
   // Consolidated state with default values to prevent undefined access
   const [state, setState] = useState({
-    item: null,
-    biddingHistory: [],
-    timeLeft: '',
-    error: '',
-    isEditing: false,
-    newImageFiles: [],
-    bidAmount: '',
+    item: null, // Item details
+    biddingHistory: [], // List of bids
+    timeLeft: '', // Time left for the auction
+    error: '', // Error messages
+    isEditing: false, // Whether the user is editing the listing
+    newImageFiles: [], // New images selected for upload
+    bidAmount: '', // User-entered bid amount
   });
 
   const { item, biddingHistory, timeLeft, error, isEditing, newImageFiles, bidAmount } = state;
@@ -52,7 +52,7 @@ const ItemDetail = () => {
     try {
       const response = await authFetch(`http://localhost:8082/api/items/${id}`, {
         method: 'GET',
-      });
+      }, logout);
 
       if (response.ok) {
         const data = await response.json();
@@ -77,14 +77,14 @@ const ItemDetail = () => {
       setState((prev) => ({ ...prev, error: 'Failed to fetch item details.' }));
       console.error('Fetch Item Details Error:', err);
     }
-  }, [id, calculateTimeLeft]);
+  }, [id, calculateTimeLeft, logout]);
 
   // Fetch bidding history
   const fetchBiddingHistory = useCallback(async (auctionId) => {
     try {
       const response = await authFetch(`http://localhost:8082/api/auctions/${auctionId}/bids`, {
         method: 'GET',
-      });
+      }, logout);
 
       if (response.ok) {
         const data = await response.json();
@@ -100,9 +100,9 @@ const ItemDetail = () => {
       setState((prev) => ({ ...prev, error: 'Failed to fetch bidding history.' }));
       console.error('Fetch Bidding History Error:', err);
     }
-  }, []);
+  }, [logout]);
 
-  // Fetch item details and bidding history
+  // Fetch item details and bidding history on component mount
   useEffect(() => {
     fetchItemDetails();
 
@@ -114,7 +114,7 @@ const ItemDetail = () => {
     return () => clearInterval(fetchInterval);
   }, [fetchItemDetails]);
 
-  // Update time left
+  // Update time left every second
   const updateTimeLeft = useCallback(() => {
     if (item?.auction?.auctionEndTime) {
       const newTimeLeft = calculateTimeLeft(item.auction.auctionEndTime);
@@ -131,7 +131,7 @@ const ItemDetail = () => {
     return () => clearInterval(timerInterval);
   }, [item?.auction?.auctionEndTime, updateTimeLeft]);
 
-  // Handle placing a bid
+  // Handle placing a bid or buying now based on auction type
   const handlePlaceBid = useCallback(async () => {
     const auction = item.auction || {};
     if (!auction.id) {
@@ -139,11 +139,40 @@ const ItemDetail = () => {
       return;
     }
 
+    // Prevent actions if auction has ended
+    if (timeLeft === 'Auction Ended') {
+      alert('Auction has already ended.');
+      return;
+    }
+
     try {
-      const bidRequest = {
-        bidAmount: auction.auctionType === 'DUTCH' ? auction.currentBidPrice : parseFloat(bidAmount),
-        bidderId: user.id,
-      };
+      let bidRequest = {};
+
+      if (auction.auctionType === 'FORWARD') {
+        if (bidAmount.trim() === '') {
+          alert('Please enter a bid amount.');
+          return;
+        }
+
+        const parsedBidAmount = parseFloat(bidAmount);
+        if (isNaN(parsedBidAmount) || parsedBidAmount <= auction.currentBidPrice) {
+          alert(`Please enter a bid higher than the current bid ($${auction.currentBidPrice.toFixed(2)}).`);
+          return;
+        }
+
+        bidRequest = {
+          bidAmount: parsedBidAmount,
+          bidderId: user.id,
+        };
+      } else if (auction.auctionType === 'DUTCH') {
+        bidRequest = {
+          bidAmount: auction.currentBidPrice, // Fixed price for DUTCH auctions
+          bidderId: user.id,
+        };
+      } else {
+        alert('Unsupported auction type.');
+        return;
+      }
 
       const response = await authFetch(`http://localhost:8082/api/auctions/${auction.id}/bid`, {
         method: 'POST',
@@ -151,7 +180,7 @@ const ItemDetail = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(bidRequest),
-      });
+      }, logout);
 
       if (response.ok) {
         const data = await response.json();
@@ -166,7 +195,7 @@ const ItemDetail = () => {
       setState((prev) => ({ ...prev, error: 'Failed to place bid.' }));
       console.error('Place Bid Error:', err);
     }
-  }, [item, bidAmount, user, fetchItemDetails]);
+  }, [item, bidAmount, user, fetchItemDetails, timeLeft, logout]);
 
   // Handle drag end for image reordering
   const onDragEnd = useCallback(
@@ -220,7 +249,7 @@ const ItemDetail = () => {
       const response = await authFetch(`http://localhost:8082/api/items/${id}/upload-image`, {
         method: 'POST',
         body: formData,
-      });
+      }, logout);
 
       if (response.ok) {
         const updatedImageUrls = await response.json();
@@ -238,7 +267,7 @@ const ItemDetail = () => {
       setState((prev) => ({ ...prev, error: 'An error occurred while uploading images.' }));
       console.error('Upload Images Error:', err);
     }
-  }, [id, newImageFiles]);
+  }, [id, newImageFiles, logout]);
 
   // Handle saving changes after editing images
   const handleSaveChanges = useCallback(async () => {
@@ -251,7 +280,7 @@ const ItemDetail = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(item.imageUrls), // Send updated images array
-      });
+      }, logout);
 
       if (response.ok) {
         const updatedImageUrls = await response.json();
@@ -269,8 +298,8 @@ const ItemDetail = () => {
       setState((prev) => ({ ...prev, error: 'An error occurred while saving changes.' }));
       console.error('Save Changes Error:', err);
     }
-  }, [id, item?.imageUrls]);
-  
+  }, [id, item?.imageUrls, logout]);
+
   // Render error state
   if (error) {
     return (
@@ -305,18 +334,18 @@ const ItemDetail = () => {
   const auction = item.auction || {};
 
   // Determine if the current user is the owner
-  const isOwner = user && user.username === item.listedBy;
+  const isOwner = user && user.id === item.listedBy;
 
   return (
-     <div className="container mx-auto px-4 py-6">
-       <button
-         onClick={() => navigate('/items')}
-         className="mb-4 px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
-       >
-         &larr; Back to Items
-       </button>
-       <div className="flex flex-col md:flex-row">
-         {/* Image Section */}
+    <div className="container mx-auto px-4 py-6">
+      <button
+        onClick={() => navigate('/items')}
+        className="mb-4 px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
+      >
+        &larr; Back to Items
+      </button>
+      <div className="flex flex-col md:flex-row">
+        {/* Image Section */}
         <div className="md:w-1/2">
           {item.imageUrls && item.imageUrls.length > 0 ? (
             isEditing ? (
@@ -394,123 +423,147 @@ const ItemDetail = () => {
           )}
         </div>
 
-		{/* Details Section */}
-		        <div className="md:w-1/2 md:pl-8">
-		          <h2 className="text-3xl font-bold mb-4">{item.name}</h2>
-		          <p className="mb-2">
-		            <strong>Description:</strong> {item.description}
-		          </p>
-		          <p className="mb-2">
-		            <strong>Auction Type:</strong> {auction.auctionType || 'N/A'}
-		          </p>
-		          <p className="mb-2">
-		            <strong>Starting Bid:</strong> $
-		            {auction.startingBidPrice !== undefined ? auction.startingBidPrice.toFixed(2) : 'N/A'}
-		          </p>
-		          <p className="mb-2">
-		            <strong>Current Bid:</strong> $
-		            {auction.currentBidPrice !== undefined ? auction.currentBidPrice.toFixed(2) : 'N/A'}
-		          </p>
-		          <p className="mb-2">
-		            <strong>Listed By:</strong> {item.listedBy}
-		          </p>
-		          <p className="mb-2">
-		            <strong>Time Left:</strong> {timeLeft}
-		          </p>
+        {/* Details Section */}
+        <div className="md:w-1/2 md:pl-8">
+          <h2 className="text-3xl font-bold mb-4">{item.name}</h2>
+          <p className="mb-2">
+            <strong>Description:</strong> {item.description}
+          </p>
+          <p className="mb-2">
+            <strong>Auction Type:</strong> {auction.auctionType || 'N/A'}
+          </p>
+          <p className="mb-2">
+            <strong>Starting Bid:</strong> $
+            {auction.startingBidPrice !== undefined ? auction.startingBidPrice.toFixed(2) : 'N/A'}
+          </p>
+          <p className="mb-2">
+            <strong>Current Bid:</strong> $
+            {auction.currentBidPrice !== undefined ? auction.currentBidPrice.toFixed(2) : 'N/A'}
+          </p>
+          <p className="mb-2">
+            <strong>Listed By:</strong> {item.listedByName}
+          </p>
+          <p className="mb-2">
+            <strong>Time Left:</strong> {timeLeft}
+          </p>
 
-		          {/* Bidding Section */}
-		          {user && !isOwner && auction.auctionType === 'FORWARD' && (
-		            <div className="mt-4">
-		              <h3 className="text-xl font-semibold mb-2">Place a Bid</h3>
-		              <input
-		                type="number"
-		                placeholder="Enter your bid amount"
-		                value={bidAmount}
-		                onChange={(e) => setState((prev) => ({ ...prev, bidAmount: e.target.value }))}
-		                className="w-full px-3 py-2 border rounded mb-2"
-		              />
-		              <button
-		                onClick={handlePlaceBid}
-		                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-		              >
-		                Place Bid
-		              </button>
-		            </div>
-		          )}
-		          {user && !isOwner && auction.auctionType === 'DUTCH' && (
-		            <div className="mt-4">
-		              <h3 className="text-xl font-semibold mb-2">Buy Now</h3>
-		              <p>
-		                Current Price: $
-		                {auction.currentBidPrice !== undefined
-		                  ? auction.currentBidPrice.toFixed(2)
-		                  : 'N/A'}
-		              </p>
-		              <button
-		                onClick={handlePlaceBid}
-		                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-		              >
-		                Buy at Current Price
-		              </button>
-		            </div>
-		          )}
-		          <div className="mt-4">
-		            <button
-		              onClick={() => navigate(`/items/${id}/payment`)}
-		              className="mt-4 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-		            >
-		              Make Payment
-		            </button>
-		            {isOwner && (
-		              <button
-		                onClick={() => setState((prev) => ({ ...prev, isEditing: !prev.isEditing }))}
-		                className="ml-4 mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-		              >
-		                {isEditing ? 'Finish Editing' : 'Edit'}
-		              </button>
-		            )}
-		            {isEditing && (
-		              <button
-		                onClick={handleSaveChanges}
-		                className="ml-4 mt-4 px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
-		              >
-		                Save Changes
-		              </button>
-		            )}
-		          </div>
-		        </div>
-		      </div>
+          {/* Bidding Section */}
+          {user && !isOwner && (
+            <div className="mt-4">
+              {auction.auctionType === 'FORWARD' && (
+                <>
+                  <h3 className="text-xl font-semibold mb-2">Place a Bid</h3>
+                  <input
+                    type="number"
+                    placeholder="Enter your bid amount"
+                    value={bidAmount}
+                    onChange={(e) => setState((prev) => ({ ...prev, bidAmount: e.target.value }))}
+                    className="w-full px-3 py-2 border rounded mb-2"
+                    min={auction.currentBidPrice + 0.01} // Minimum bid amount
+                  />
+                  <button
+                    onClick={handlePlaceBid}
+                    className={`px-4 py-2 rounded ${
+                      timeLeft === 'Auction Ended'
+                        ? 'bg-gray-500 cursor-not-allowed'
+                        : 'bg-green-500 text-white hover:bg-green-600'
+                    }`}
+                    disabled={timeLeft === 'Auction Ended'}
+                  >
+                    Place Bid
+                  </button>
+                </>
+              )}
 
-		      {/* Bidding History Section */}
-		      <div className="mt-8">
-		        <h3 className="text-2xl font-semibold mb-4">Bidding History</h3>
-		        {biddingHistory.length > 0 ? (
-		          <table className="min-w-full bg-white border">
-		            <thead>
-		              <tr>
-		                <th className="py-2 px-4 border">Bidder</th>
-		                <th className="py-2 px-4 border">Bid Amount ($)</th>
-		                <th className="py-2 px-4 border">Time</th>
-		              </tr>
-		            </thead>
-		            <tbody>
-		              {biddingHistory.map((bid, index) => (
-		                <tr key={index} className="text-center">
-		                  <td className="py-2 px-4 border">{bid.bidderUsername}</td>
-		                  <td className="py-2 px-4 border">{bid.amount.toFixed(2)}</td>
-		                  <td className="py-2 px-4 border">
-		                    {formatDistanceToNow(parseISO(bid.timestamp), { addSuffix: true })}
-		                  </td>
-		                </tr>
-		              ))}
-		            </tbody>
-		          </table>
-		        ) : (
-		          <p>No bids have been placed yet.</p>
-		        )}
-		      </div>
-		    </div>
-		  );
-		};
+              {auction.auctionType === 'DUTCH' && (
+                <>
+                  <h3 className="text-xl font-semibold mb-2">Buy Now</h3>
+                  <p>
+                    Current Price: $
+                    {auction.currentBidPrice !== undefined
+                      ? auction.currentBidPrice.toFixed(2)
+                      : 'N/A'}
+                  </p>
+                  <button
+                    onClick={handlePlaceBid}
+                    className={`px-4 py-2 rounded ${
+                      timeLeft === 'Auction Ended'
+                        ? 'bg-gray-500 cursor-not-allowed'
+                        : 'bg-blue-500 text-white hover:bg-blue-600'
+                    }`}
+                    disabled={timeLeft === 'Auction Ended'}
+                  >
+                    Buy at Current Price
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Make Payment Button - Visible Only to Lister After Auction Ended */}
+          {isOwner && timeLeft === 'Auction Ended' && (
+            <div className="mt-4">
+              <button
+                onClick={() => navigate(`/items/${id}/payment`)}
+                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+              >
+                Make Payment
+              </button>
+            </div>
+          )}
+
+          {/* Edit Listing Button - Visible Only to Lister */}
+          {isOwner && (
+            <div className="mt-4">
+              <button
+                onClick={() => setState((prev) => ({ ...prev, isEditing: !prev.isEditing }))}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                {isEditing ? 'Finish Editing' : 'Edit Listing'}
+              </button>
+              {isEditing && (
+                <button
+                  onClick={handleSaveChanges}
+                  className="ml-4 px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+                >
+                  Save Changes
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Bidding History Section */}
+      <div className="mt-8">
+        <h3 className="text-2xl font-semibold mb-4">Bidding History</h3>
+        {biddingHistory.length > 0 ? (
+          <table className="min-w-full bg-white border">
+            <thead>
+              <tr>
+                <th className="py-2 px-4 border">Bidder</th>
+                <th className="py-2 px-4 border">Bid Amount ($)</th>
+                <th className="py-2 px-4 border">Time</th>
+              </tr>
+            </thead>
+            <tbody>
+              {biddingHistory.map((bid, index) => (
+                <tr key={index} className="text-center">
+                  <td className="py-2 px-4 border">{bid.bidderUsername}</td>
+                  <td className="py-2 px-4 border">{bid.amount.toFixed(2)}</td>
+                  <td className="py-2 px-4 border">
+                    {formatDistanceToNow(parseISO(bid.timestamp), { addSuffix: true })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p>No bids have been placed yet.</p>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export default ItemDetail;

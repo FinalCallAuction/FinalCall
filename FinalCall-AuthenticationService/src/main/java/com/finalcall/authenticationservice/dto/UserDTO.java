@@ -30,6 +30,8 @@ public class UserDTO {
         this.isSeller = isSeller;
     }
 
+    // Getters and Setters
+
     public Long getId() {
         return id;
     }

@@ -23,12 +23,15 @@ const Login = () => {
     const { username, password } = credentials;
     const result = await login(username, password);
     if (result.success) {
-      // Redirect to items page
+      // Save token and navigate
+      localStorage.setItem('token', result.token);
+      console.log('Token saved:', result.token); // Log to confirm token storage
       navigate('/items');
     } else {
       setError(result.message);
     }
   };
+
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-blue-50">

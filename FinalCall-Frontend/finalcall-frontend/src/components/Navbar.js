@@ -1,3 +1,5 @@
+// src/components/Navbar.js
+
 import React, { useContext, useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';

@@ -1,5 +1,6 @@
 package com.finalcall.catalogueservice.client;
 
+import com.finalcall.catalogueservice.config.FeignConfig;
 import com.finalcall.catalogueservice.dto.AuctionDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
@@ -8,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 /**
  * Feign client to communicate with the AuctionService.
  */
-@FeignClient(name = "auction-service", url = "${auction.service.url}")
+@FeignClient(name = "auction-service", url = "${auction.service.url}", configuration = FeignConfig.class)
 public interface AuctionServiceClient {
 
     /**
@@ -17,7 +18,7 @@ public interface AuctionServiceClient {
      * @param auctionDTO Details of the auction to create.
      * @return ResponseEntity with the result of the creation.
      */
-    @PostMapping("/api/auctions")
+    @PostMapping("/api/auctions/create")
     ResponseEntity<?> createAuction(@RequestBody AuctionDTO auctionDTO);
 
     /**

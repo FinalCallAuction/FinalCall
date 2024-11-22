@@ -61,6 +61,8 @@ public class User {
         this.isSeller = isSeller;
     }
 
+    // Getters and Setters
+
     public Long getId() {
         return id;
     }
@@ -145,7 +147,7 @@ public class User {
     public boolean getIsSeller() {
         return isSeller;
     }
-
+ 
     public void setIsSeller(boolean isSeller) {
         this.isSeller = isSeller;
     }

@@ -1,10 +1,12 @@
+// src/components/Profile.js
+
 import React, { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { authFetch } from '../utils/authFetch';
 
 const Profile = () => {
-  const { user } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const [userDetails, setUserDetails] = useState(null);
   const [activeListings, setActiveListings] = useState([]);
@@ -17,21 +19,21 @@ const Profile = () => {
       fetchUserDetails();
       fetchActiveListings();
     }
-    // eslint-disable-next-line
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const fetchUserDetails = async () => {
     try {
       const response = await authFetch(`http://localhost:8081/api/user/${user.id}`, {
         method: 'GET',
-      });
+      }, logout);
 
       if (response.ok) {
         const data = await response.json();
         setUserDetails(data);
       } else {
         const errorMsg = await response.text();
-        setError(errorMsg);
+        setError(`Error: ${errorMsg}`);
       }
     } catch (err) {
       setError('Failed to fetch user details.');
@@ -43,7 +45,7 @@ const Profile = () => {
     try {
       const response = await authFetch(`http://localhost:8082/api/items/user/active-listings`, {
         method: 'GET',
-      });
+      }, logout);
 
       if (response.ok) {
         const data = await response.json();
@@ -57,8 +59,6 @@ const Profile = () => {
       console.error('Fetch Active Listings Error:', err);
     }
   };
-
-
 
   if (!userDetails) {
     return (

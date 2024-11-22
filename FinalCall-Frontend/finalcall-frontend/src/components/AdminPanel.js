@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { authFetch } from '../utils/authFetch';
 
 const AdminPanel = () => {
-  const { user } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [items, setItems] = useState([]);
@@ -22,13 +22,14 @@ const AdminPanel = () => {
       fetchUsers();
       fetchItems();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, navigate]);
 
   const fetchUsers = async () => {
     try {
       const response = await authFetch('http://localhost:8081/api/user/all', {
         method: 'GET',
-      });
+      }, logout);
       if (response.ok) {
         const data = await response.json();
         setUsers(data);
@@ -46,7 +47,7 @@ const AdminPanel = () => {
     try {
       const response = await authFetch('http://localhost:8082/api/items', {
         method: 'GET',
-      });
+      }, logout);
       if (response.ok) {
         const data = await response.json();
         setItems(data);
@@ -56,6 +57,7 @@ const AdminPanel = () => {
       }
     } catch (err) {
       setError('Failed to fetch items.');
+      console.error('Fetch Items Error:', err);
     }
   };
 
@@ -63,7 +65,7 @@ const AdminPanel = () => {
     try {
       const response = await authFetch(`http://localhost:8081/api/user/${userId}`, {
         method: 'DELETE',
-      });
+      }, logout);
       if (response.ok) {
         setUsers(users.filter((user) => user.id !== userId));
       } else {
@@ -79,7 +81,7 @@ const AdminPanel = () => {
     try {
       const response = await authFetch(`http://localhost:8082/api/items/${itemId}`, {
         method: 'DELETE',
-      });
+      }, logout);
       if (response.ok) {
         setItems(items.filter((item) => item.id !== itemId));
       } else {
@@ -141,7 +143,7 @@ const AdminPanel = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(userDetails),
-      });
+      }, logout);
 
       if (response.ok) {
         setUsers(users.map((user) => (user.id === editingUser.id ? editingUser : user)));
@@ -167,7 +169,7 @@ const AdminPanel = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(itemData), // Send itemData without Auction
-      });
+      }, logout);
 
       if (response.ok) {
         setItems(items.map((item) => (item.id === editingItem.id ? itemData : item)));
@@ -180,7 +182,7 @@ const AdminPanel = () => {
           const photoResponse = await authFetch(`http://localhost:8082/api/items/${editingItem.id}/upload-image`, {
             method: 'POST',
             body: formData,
-          });
+          }, logout);
 
           if (!photoResponse.ok) {
             const errorMsg = await photoResponse.text();
@@ -206,7 +208,7 @@ const AdminPanel = () => {
     try {
       const response = await authFetch(`http://localhost:8082/api/items/${itemId}/photo/${photoId}`, {
         method: 'DELETE',
-      });
+      }, logout);
 
       if (response.ok) {
         fetchItems(); // Refresh items list after delete
@@ -252,21 +254,21 @@ const AdminPanel = () => {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
-                <tr key={user.id} className="text-center">
-                  <td className="py-2 px-4 border">{user.username}</td>
-                  <td className="py-2 px-4 border">{user.email}</td>
+              {users.map((userItem) => (
+                <tr key={userItem.id} className="text-center">
+                  <td className="py-2 px-4 border">{userItem.username}</td>
+                  <td className="py-2 px-4 border">{userItem.email}</td>
                   <td className="py-2 px-4 border">
-                    {user.username !== 'admin' && (
+                    {userItem.username !== 'admin' && (
                       <>
                         <button
-                          onClick={() => handleEditUser(user)}
+                          onClick={() => handleEditUser(userItem)}
                           className="bg-blue-500 text-white px-4 py-1 rounded hover:bg-blue-600 mr-2"
                         >
                           Edit
                         </button>
                         <button
-                          onClick={() => handleDeleteUser(user.id)}
+                          onClick={() => handleDeleteUser(userItem.id)}
                           className="bg-red-500 text-white px-4 py-1 rounded hover:bg-red-600"
                         >
                           Delete

@@ -3,6 +3,9 @@ package com.finalcall.auctionservice.entity;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
+/**
+ * Entity representing a Bid.
+ */
 @Entity
 @Table(name = "bids")
 public class Bid {

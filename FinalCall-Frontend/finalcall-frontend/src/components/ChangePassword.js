@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { authFetch } from '../utils/authFetch';
 
 const ChangePassword = () => {
-  const { user } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const [passwords, setPasswords] = useState({
     currentPassword: '',
@@ -14,6 +14,7 @@ const ChangePassword = () => {
     confirmNewPassword: '',
   });
   const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -26,11 +27,12 @@ const ChangePassword = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setMessage('');
+    setError('');
 
     const { currentPassword, newPassword, confirmNewPassword } = passwords;
 
     if (newPassword !== confirmNewPassword) {
-      setMessage('New passwords do not match.');
+      setError('New passwords do not match.');
       return;
     }
 
@@ -40,8 +42,8 @@ const ChangePassword = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ password: newPassword }),
-      });
+        body: JSON.stringify({ currentPassword, newPassword }),
+      }, logout);
 
       if (response.ok) {
         setMessage('Password updated successfully.');
@@ -49,16 +51,16 @@ const ChangePassword = () => {
         navigate('/profile'); // Assuming you have a profile page
       } else {
         const errorMsg = await response.text();
-        setMessage(`Error: ${errorMsg}`);
+        setError(`Error: ${errorMsg}`);
       }
     } catch (err) {
-      setMessage('An error occurred while updating the password.');
+      setError('An error occurred while updating the password.');
       console.error('Change Password Error:', err);
     }
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-yellow-50">
+    <div className="flex items-center justify-center min-h-screen bg-blue-50">
       <form
         onSubmit={handleSubmit}
         className="bg-white p-8 rounded shadow-md w-full max-w-md"
@@ -73,6 +75,16 @@ const ChangePassword = () => {
             role="alert"
           >
             {message}
+          </div>
+        )}
+
+        {error && (
+          <div
+            className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
+            role="alert"
+          >
+            <strong className="font-bold">Error:</strong>
+            <span className="block sm:inline"> {error}</span>
           </div>
         )}
 

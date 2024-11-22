@@ -1,5 +1,3 @@
-// src/main/java/com/finalcall/authenticationservice/service/UserService.java
-
 package com.finalcall.authenticationservice.service;
 
 import com.finalcall.authenticationservice.entity.User;
@@ -15,68 +13,69 @@ import java.util.Optional;
 @Service
 public class UserService {
 
-    @Autowired
-    private UserRepository userRepository;
+	 @Autowired
+	    private UserRepository userRepository;
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+	    @Autowired
+	    private PasswordEncoder passwordEncoder;
 
-    /**
-     * Registers a new user after validating username and email uniqueness.
-     *
-     * @param user The user to register.
-     * @return The registered user.
-     * @throws Exception If username or email already exists.
-     */
-    public User registerUser(User user) throws Exception {
-        if (userRepository.existsByUsername(user.getUsername())) {
-            throw new Exception("Username is already taken.");
-        }
-        if (userRepository.existsByEmail(user.getEmail())) {
-            throw new Exception("Email is already in use.");
-        }
-        // Encode the password before saving
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
-        return userRepository.save(user);
-    }
+	    /**
+	     * Registers a new user after validating username and email uniqueness.
+	     *
+	     * @param user The user to register.
+	     * @return The registered user.
+	     * @throws Exception If username or email already exists.
+	     */
+	    public User registerUser(User user) throws Exception {
+	        if (userRepository.existsByUsername(user.getUsername())) {
+	            throw new Exception("Username is already taken.");
+	        }
+	        if (userRepository.existsByEmail(user.getEmail())) {
+	            throw new Exception("Email is already in use.");
+	        }
+	        // Encode the password before saving
+	        user.setPassword(passwordEncoder.encode(user.getPassword()));
+	        return userRepository.save(user);
+	    }
 
-    /**
-     * Finds a user by their username.
-     *
-     * @param username The username to search for.
-     * @return An Optional containing the user if found.
-     */
-    public Optional<User> findByUsername(String username) {
-        return userRepository.findByUsername(username);
-    }
+	    /**
+	     * Finds a user by their username.
+	     *
+	     * @param username The username to search for.
+	     * @return An Optional containing the user if found.
+	     */
+	    public Optional<User> findByUsername(String username) {
+	        return userRepository.findByUsername(username);
+	    }
 
-    /**
-     * Finds a user by their ID.
-     *
-     * @param id The user ID.
-     * @return An Optional containing the user if found.
-     */
-    public Optional<User> findById(Long id) {
-        return userRepository.findById(id);
-    }
+	    /**
+	     * Finds a user by their ID.
+	     *
+	     * @param id The user ID.
+	     * @return An Optional containing the user if found.
+	     */
+	    public Optional<User> findById(Long id) {
+	        return userRepository.findById(id);
+	    }
 
-    /**
-     * Authenticates a user with the provided username and password.
-     *
-     * @param username The username.
-     * @param password The password.
-     * @return An Optional containing the authenticated user if credentials match.
-     */
-    public Optional<User> authenticate(String username, String password) {
-        Optional<User> userOpt = userRepository.findByUsername(username);
-        if (userOpt.isPresent()) {
-            User user = userOpt.get();
-            if (passwordEncoder.matches(password, user.getPassword())) {
-                return Optional.of(user);
-            }
-        }
-        return Optional.empty();
-    }
+	    /**
+	     * Authenticates a user with the provided username and password.
+	     *
+	     * @param username The username.
+	     * @param password The password.
+	     * @return An Optional containing the authenticated user if credentials match.
+	     */
+	    public Optional<User> authenticate(String username, String password) {
+	        Optional<User> userOpt = userRepository.findByUsername(username);
+	        if (userOpt.isPresent()) {
+	            User user = userOpt.get();
+	            if (passwordEncoder.matches(password, user.getPassword())) {
+	                return Optional.of(user);
+	            }
+	        }
+	        return Optional.empty();
+	    }
+
 
     /**
      * Updates the email of a user.

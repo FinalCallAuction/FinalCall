@@ -8,7 +8,7 @@ import { authFetch } from '../utils/authFetch';
 const MakePayment = () => {
   const { id } = useParams(); // itemId from the URL
   const navigate = useNavigate();
-  const { user } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
   const [amount, setAmount] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -39,7 +39,7 @@ const MakePayment = () => {
           currency: 'USD', // Assuming default currency
           paymentMethodId: 'mock-payment-method', // Mock payment method ID
         }),
-      });
+      }, logout);
 
       if (response.ok) {
         const payment = await response.json();
@@ -74,7 +74,7 @@ const MakePayment = () => {
           type="number"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          className="w-full px-3 py-2 border rounded mt-1"
+          className="w-full px-3 py-2 border rounded"
           min="0.01"
           step="0.01"
         />

@@ -2,6 +2,8 @@ package com.finalcall.auctionservice.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Entity representing an Auction.
@@ -49,9 +51,29 @@ public class Auction {
     @Column(name = "current_bidder_id")
     private Long currentBidderId; // ID of the current highest bidder
 
+    @ElementCollection
+    @CollectionTable(name = "auction_images", joinColumns = @JoinColumn(name = "auction_id"))
+    @Column(name = "image_url")
+    private List<String> imageUrls = new ArrayList<>();
+
     // Constructors
     public Auction() {
         this.status = AuctionStatus.ACTIVE; // Set default status
+    }
+
+    public Auction(Long itemId, AuctionType auctionType, Double startingBidPrice, Double currentBidPrice,
+                  LocalDateTime auctionEndTime, Long sellerId, LocalDateTime startTime,
+                  Double priceDecrement, Double minimumPrice) {
+        this.itemId = itemId;
+        this.auctionType = auctionType;
+        this.startingBidPrice = startingBidPrice;
+        this.currentBidPrice = currentBidPrice;
+        this.auctionEndTime = auctionEndTime;
+        this.sellerId = sellerId;
+        this.startTime = startTime;
+        this.priceDecrement = priceDecrement;
+        this.minimumPrice = minimumPrice;
+        this.status = AuctionStatus.ACTIVE;
     }
 
     // Getters and Setters
@@ -100,22 +122,6 @@ public class Auction {
         this.currentBidPrice = currentBidPrice;
     }
 
-    public Double getPriceDecrement() {
-        return priceDecrement;
-    }
-
-    public void setPriceDecrement(Double priceDecrement) {
-        this.priceDecrement = priceDecrement;
-    }
-
-    public Double getMinimumPrice() {
-        return minimumPrice;
-    }
-
-    public void setMinimumPrice(Double minimumPrice) {
-        this.minimumPrice = minimumPrice;
-    }
-
     public LocalDateTime getAuctionEndTime() {
         return auctionEndTime;
     }
@@ -140,12 +146,36 @@ public class Auction {
         this.startTime = startTime;
     }
 
+    public Double getPriceDecrement() {
+        return priceDecrement;
+    }
+
+    public void setPriceDecrement(Double priceDecrement) {
+        this.priceDecrement = priceDecrement;
+    }
+
+    public Double getMinimumPrice() {
+        return minimumPrice;
+    }
+
+    public void setMinimumPrice(Double minimumPrice) {
+        this.minimumPrice = minimumPrice;
+    }
+
     public Long getCurrentBidderId() {
         return currentBidderId;
     }
 
     public void setCurrentBidderId(Long currentBidderId) {
         this.currentBidderId = currentBidderId;
+    }
+
+    public List<String> getImageUrls() {
+        return imageUrls;
+    }
+
+    public void setImageUrls(List<String> imageUrls) {
+        this.imageUrls = imageUrls;
     }
 
     /**

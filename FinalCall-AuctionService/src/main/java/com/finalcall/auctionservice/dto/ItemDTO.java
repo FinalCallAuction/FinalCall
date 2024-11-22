@@ -1,89 +1,115 @@
-// src/main/java/com/finalcall/auctionservice/dto/ItemDTO.java
-
 package com.finalcall.auctionservice.dto;
 
 import java.util.List;
 
-/**
- * Data Transfer Object representing an item.
- * Used to transfer item data when interacting with the Catalogue Service.
- */
 public class ItemDTO {
     private Long id;
+    private String randomId;
     private String name;
-    private String description; 
-    private Long listedBy; 
-    private List<String> imageUrls; 
+    private String description;
     private String keywords;
-    private Double startingBidPrice; 
+    private List<String> imageUrls;
+    private Long listedBy;
+    private String listedByName;
+    private Double startingBidPrice;
+    private AuctionDTO auction;
 
     public ItemDTO() {}
 
-    public ItemDTO(Long id, String name, String description, Long listedBy, List<String> imageUrls, String keywords, Double startingBidPrice) {
+    public ItemDTO(Long id, String randomId, String name, String description, String keywords,
+                  List<String> imageUrls, Long listedBy, String listedByName, Double startingBidPrice,
+                  AuctionDTO auction) {
         this.id = id;
+        this.randomId = randomId;
         this.name = name;
         this.description = description;
-        this.listedBy = listedBy;
-        this.imageUrls = imageUrls;
         this.keywords = keywords;
+        this.imageUrls = imageUrls;
+        this.listedBy = listedBy;
+        this.listedByName = listedByName;
         this.startingBidPrice = startingBidPrice;
+        this.auction = auction;
     }
 
+    // Getters and Setters
 
     public Long getId() {
         return id;
     }
 
-    public void setId(Long id) {
-        this.id = id;
+    public String getRandomId() {
+        return randomId;
     }
 
     public String getName() {
         return name;
     }
 
-    public void setName(String name) {
-        this.name = name;
-    }
-
     public String getDescription() {
         return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public Long getListedBy() {
-        return listedBy;
-    }
-
-    public void setListedBy(Long listedBy) {
-        this.listedBy = listedBy;
-    }
-
-    public List<String> getImageUrls() {
-        return imageUrls;
-    }
-
-    public void setImageUrls(List<String> imageUrls) {
-        this.imageUrls = imageUrls;
     }
     
     public String getKeywords() {
         return keywords;
     }
 
+    public List<String> getImageUrls() {
+        return imageUrls;
+    }
+
+    public Long getListedBy() {
+        return listedBy;
+    }
+
+    public String getListedByName() {
+        return listedByName;
+    }
+
+    public Double getStartingBidPrice() {
+        return startingBidPrice;
+    }
+
+    public AuctionDTO getAuction() {
+        return auction;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setRandomId(String randomId) {
+        this.randomId = randomId;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
     public void setKeywords(String keywords) {
         this.keywords = keywords;
     }
 
-    public Double getStartingBidPrice() { 
-        return startingBidPrice;
+    public void setImageUrls(List<String> imageUrls) {
+        this.imageUrls = imageUrls;
+    }
+
+    public void setListedBy(Long listedBy) {
+        this.listedBy = listedBy;
+    }
+
+    public void setListedByName(String listedByName) {
+        this.listedByName = listedByName;
     }
 
     public void setStartingBidPrice(Double startingBidPrice) {
         this.startingBidPrice = startingBidPrice;
     }
 
+    public void setAuction(AuctionDTO auction) {
+        this.auction = auction;
+    }
 }

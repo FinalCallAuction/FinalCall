@@ -7,13 +7,14 @@ import { authFetch } from '../utils/authFetch';
 import { formatDistance } from 'date-fns';
 
 const CreateItem = () => {
-  const { user } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const [itemDetails, setItemDetails] = useState({
     name: '',
     startingBid: '',
     auctionType: 'FORWARD', // Default value
     auctionEndTime: '',
+    description: '', // Added description field
   });
   const [error, setError] = useState('');
   const [timeDifference, setTimeDifference] = useState('');
@@ -40,6 +41,7 @@ const CreateItem = () => {
         auctionEndTime: defaultAuctionEndTime,
       }));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, navigate]);
 
   // Update the time difference whenever auctionEndTime changes
@@ -64,10 +66,10 @@ const CreateItem = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setItemDetails((prevDetails) => ({
-      ...prevDetails,
+    setItemDetails({
+      ...itemDetails,
       [name]: value,
-    }));
+    });
   };
 
   const handleImageChange = (e) => {
@@ -80,7 +82,7 @@ const CreateItem = () => {
     e.preventDefault();
     setError('');
 
-    const { name, startingBid, auctionType, auctionEndTime } = itemDetails;
+    const { name, startingBid, auctionType, auctionEndTime, description } = itemDetails;
 
     // Basic validation
     if (!name || !startingBid || !auctionEndTime) {
@@ -105,14 +107,14 @@ const CreateItem = () => {
         startingBid: parseFloat(startingBid),
         auctionType,
         auctionEndTime,
-        description: itemDetails.description, // Include description if applicable
+        description, // Include description if applicable
       };
 
       const response = await authFetch('http://localhost:8082/api/items/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(itemData),
-      });
+      }, logout);
 
       if (!response.ok) {
         const errorMsg = await response.text();
@@ -133,7 +135,7 @@ const CreateItem = () => {
         const uploadResponse = await authFetch(`http://localhost:8082/api/items/${itemId}/upload-image`, {
           method: 'POST',
           body: formData,
-        });
+        }, logout);
 
         if (!uploadResponse.ok) {
           const errorMsg = await uploadResponse.text();
@@ -244,6 +246,20 @@ const CreateItem = () => {
               })()
             } // Sets the minimum selectable time to 1 hour from now
           />
+        </div>
+        <div className="mb-6">
+          <label className="block text-gray-700" htmlFor="description">
+            Description:
+          </label>
+          <textarea
+            name="description"
+            id="description"
+            value={itemDetails.description}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border rounded mt-1"
+            placeholder="Enter a detailed description of the item"
+            rows="4"
+          ></textarea>
         </div>
         <div className="mb-6">
           <label className="block text-gray-700" htmlFor="images">

@@ -4,10 +4,10 @@ import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { authFetch } from '../utils/authFetch';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns'; // Ensure this import is present
 
 const ItemsPage = () => {
-  const { user } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [sellerNames, setSellerNames] = useState({}); // To store seller names keyed by user ID
@@ -25,7 +25,7 @@ const ItemsPage = () => {
           if (!newSellerNames[id]) { // Fetch only if not already fetched
             const response = await authFetch(`http://localhost:8081/api/user/${id}`, {
               method: 'GET',
-            });
+            }, logout); // Pass logout to handle unauthorized responses
 
             if (response.ok) {
               const userData = await response.json();
@@ -50,7 +50,7 @@ const ItemsPage = () => {
       // Fetch items from Catalogue Service
       const itemsResponse = await authFetch('http://localhost:8082/api/items', {
         method: 'GET',
-      });
+      }, logout); // Pass logout to handle unauthorized responses
 
       if (!itemsResponse.ok) {
         const errorMsg = await itemsResponse.text();

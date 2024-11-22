@@ -62,7 +62,12 @@ public class ItemController {
     @PostMapping("/create")
     public ResponseEntity<?> createItem(@RequestBody ItemRequest itemRequest, @AuthenticationPrincipal Jwt principal) {
         // Extract user ID from JWT
-        Long userId = principal.getClaim("id");
+        String userIdStr = principal.getSubject();
+        Long userId = null;
+        if (userIdStr != null) {
+            userId = Long.parseLong(userIdStr);
+        }
+
         if (userId == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User ID not found in token.");
         }

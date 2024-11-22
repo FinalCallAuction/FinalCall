@@ -1,5 +1,3 @@
-// src/main/java/com/finalcall/authenticationservice/repository/UserRepository.java
-
 package com.finalcall.authenticationservice.repository;
 
 import com.finalcall.authenticationservice.entity.User;

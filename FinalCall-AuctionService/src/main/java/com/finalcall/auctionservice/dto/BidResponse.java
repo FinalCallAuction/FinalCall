@@ -1,7 +1,8 @@
-// src/main/java/com/finalcall/catalogueservice/dto/BidResponse.java
-
 package com.finalcall.auctionservice.dto;
 
+/**
+ * Data Transfer Object for bid response.
+ */
 public class BidResponse {
     private String message;
     private Double currentBidPrice;

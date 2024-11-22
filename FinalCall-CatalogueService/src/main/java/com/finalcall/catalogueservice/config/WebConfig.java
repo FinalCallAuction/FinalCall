@@ -13,14 +13,6 @@ public class WebConfig implements WebMvcConfigurer {
     private String imageUploadDir;
 
     @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**")
-                .allowedOrigins("*") // For development, will be restricted later
-                .allowedMethods("*")
-                .allowedHeaders("*");
-    }
-
-    @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         if (!imageUploadDir.endsWith("/")) {
             imageUploadDir += "/";

@@ -21,18 +21,21 @@ const Register = () => {
     postalCode: '',
     isSeller: false,
   });
-
-  const [countryOptions, setCountryOptions] = useState([]);
+  const [countryOptions, setCountryOptions] = useState(getCountryOptions()); // Ensure setCountryOptions is defined
   const [regionOptions, setRegionOptions] = useState([]);
 
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // Fetch country options on component mount
+    // If you need to fetch country options from an API or perform any side effects, do it here.
+    // Since getCountryOptions is a utility function, and already used in useState, this might be redundant.
+    // However, if getCountryOptions is asynchronous, adjust accordingly.
+
+    // Example if getCountryOptions is synchronous:
     const countries = getCountryOptions();
     console.log('Country Options:', countries); // Debugging line
     setCountryOptions(countries);
-  }, []);
+  }, []); // Empty dependency array ensures this runs once on mount
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;

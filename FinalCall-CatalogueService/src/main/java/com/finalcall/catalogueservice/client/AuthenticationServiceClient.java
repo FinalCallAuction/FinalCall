@@ -1,5 +1,6 @@
 package com.finalcall.catalogueservice.client;
 
+import com.finalcall.catalogueservice.config.FeignConfig;
 import com.finalcall.catalogueservice.dto.UserDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -8,7 +9,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 /**
  * Feign client to communicate with the AuthenticationService.
  */
-@FeignClient(name = "authentication-service", url = "${authentication.service.url}")
+@FeignClient(name = "authentication-service", url = "${authentication.service.url}", configuration = FeignConfig.class)
 public interface AuthenticationServiceClient {
 
     /**

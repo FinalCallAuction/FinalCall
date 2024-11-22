@@ -2,15 +2,41 @@
 
 import React, { createContext, useState, useEffect } from 'react';
 import axios from 'axios';
+import {jwtDecode} from 'jwt-decode'; // Fixed import
 
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(getToken());
 
   // Function to retrieve the token from localStorage
-  const getToken = () => {
+  function getToken() {
     return localStorage.getItem('token');
+  }
+
+  // Function to decode JWT token and set user state
+  const decodeAndSetUser = (token) => {
+    try {
+      const decoded = jwtDecode(token);
+      if (decoded) {
+        setUser({
+          username: decoded.sub,
+          id: decoded.id,
+          email: decoded.email,
+          firstName: decoded.firstName,
+          lastName: decoded.lastName,
+          streetAddress: decoded.streetAddress,
+          province: decoded.province,
+          country: decoded.country,
+          postalCode: decoded.postalCode,
+          isSeller: decoded.isSeller,
+        });
+      }
+    } catch (error) {
+      console.error('Invalid token:', error);
+      logout();
+    }
   };
 
   // Function to handle login
@@ -29,7 +55,8 @@ export const AuthProvider = ({ children }) => {
       if (response.status === 200) {
         const data = response.data;
         localStorage.setItem('token', data.token); // Store the JWT token
-        setUser(data.user); // Set the user in state
+        setToken(data.token);
+        decodeAndSetUser(data.token); // Decode and set the user
         return { success: true };
       } else {
         return { success: false, message: 'Login failed.' };
@@ -62,7 +89,8 @@ export const AuthProvider = ({ children }) => {
       if (response.status === 200) {
         const data = response.data;
         localStorage.setItem('token', data.token); // Store the JWT token
-        setUser(data.user); // Set the user in state
+        setToken(data.token);
+        decodeAndSetUser(data.token); // Decode and set the user
         return { success: true };
       } else {
         return { success: false, message: 'Registration failed.' };
@@ -82,33 +110,29 @@ export const AuthProvider = ({ children }) => {
   // Function to handle logout
   const logout = () => {
     localStorage.removeItem('token');
+    setToken(null);
     setUser(null);
   };
 
+  // Check token validity and set user on component mount or token change
   useEffect(() => {
-    // On component mount, decode the token and set the user if token exists
-    const token = getToken();
     if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        setUser({
-          username: payload.sub,
-          id: payload.id, // Ensure your JWT includes 'id'
-          email: payload.email, // Include email if available
-          firstName: payload.firstName,
-          lastName: payload.lastName,
-          streetAddress: payload.streetAddress,
-          province: payload.province,
-          country: payload.country,
-          postalCode: payload.postalCode,
-          isSeller: payload.isSeller,
-        });
-      } catch (error) {
-        console.error('Error decoding token:', error);
+      const decoded = jwtDecode(token);
+      if (decoded) {
+        const currentTime = Date.now() / 1000;
+        if (decoded.exp && decoded.exp < currentTime) {
+          // Token expired
+          console.warn('Token expired.');
+          logout();
+        } else {
+          decodeAndSetUser(token);
+        }
+      } else {
         logout();
       }
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   return (
     <AuthContext.Provider value={{ user, login, register, logout }}>

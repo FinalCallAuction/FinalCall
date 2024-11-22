@@ -1,5 +1,3 @@
-// src/main/java/com/finalcall/authenticationservice/controller/UserController.java
-
 package com.finalcall.authenticationservice.controller;
 
 import com.finalcall.authenticationservice.entity.User;
