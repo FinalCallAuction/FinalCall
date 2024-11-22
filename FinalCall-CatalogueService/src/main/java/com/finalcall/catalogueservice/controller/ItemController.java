@@ -1,10 +1,15 @@
 package com.finalcall.catalogueservice.controller;
 
+import com.finalcall.catalogueservice.client.AuctionServiceClient;
+import com.finalcall.catalogueservice.client.AuthenticationServiceClient;
 import com.finalcall.catalogueservice.dto.AuctionDTO;
+import com.finalcall.catalogueservice.dto.ItemDTO;
 import com.finalcall.catalogueservice.dto.ItemRequest;
+import com.finalcall.catalogueservice.dto.UserDTO;
 import com.finalcall.catalogueservice.entity.Item;
-import com.finalcall.catalogueservice.repository.ItemRepository;
+import com.finalcall.catalogueservice.exception.UserNotFoundException;
 import com.finalcall.catalogueservice.service.ItemService;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,9 +18,6 @@ import org.springframework.http.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.awt.image.BufferedImage;
@@ -24,12 +26,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
+import java.util.*;
 import javax.imageio.ImageIO;
 
 @RestController
@@ -41,18 +38,15 @@ public class ItemController {
 
     @Autowired
     private ItemService itemService;
-    
-    @Autowired
-    private ItemRepository itemRepository;
 
     @Autowired
-    private RestTemplate restTemplate;
+    private AuctionServiceClient auctionServiceClient;
+
+    @Autowired
+    private AuthenticationServiceClient authenticationServiceClient; // Inject AuthenticationServiceClient
 
     @Value("${image.upload.dir}")
     private String imageUploadDir;
-
-    @Value("${auction.service.url}")
-    private String auctionServiceUrl; 
 
     public ItemController() {
         logger.info("ItemController initialized successfully.");
@@ -61,12 +55,8 @@ public class ItemController {
     /**
      * Create a new item and corresponding auction entry.
      *
-     * @param name          Name of the item.
-     * @param startingBid   Starting bid price.
-     * @param auctionType   Type of the auction (e.g., FORWARD, DUTCH).
-     * @param auctionEndTime Auction end time in 'yyyy-MM-ddTHH:mm' format.
-     * @param imageFiles    Array of image files.
-     * @param principal     JWT principal containing user details.
+     * @param itemRequest The item and auction details.
+     * @param principal   JWT principal containing user details.
      * @return ResponseEntity with the created item or error message.
      */
     @PostMapping("/create")
@@ -77,43 +67,134 @@ public class ItemController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User ID not found in token.");
         }
 
-        Item item = new Item();
-        item.setName(itemRequest.getName());
-        item.setDescription(itemRequest.getDescription());
-        item.setListedBy(userId);
-        item.setStartingBidPrice(itemRequest.getStartingBid());
-
-        // Save the item in CatalogueService 
-        Item savedItem = itemRepository.save(item);
-
-        // Prepare AuctionDTO to send to AuctionService
-        AuctionDTO auctionDTO = new AuctionDTO();
-        auctionDTO.setCatalogueItemId(savedItem.getId());
-        auctionDTO.setAuctionType(itemRequest.getAuctionType());
-        auctionDTO.setStartingBidPrice(itemRequest.getStartingBid());
-        auctionDTO.setAuctionEndTime(itemRequest.getAuctionEndTime());
-
-        // Get JWT token
-        String jwtToken = principal.getTokenValue();
-
-        // Send request to AuctionService
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(jwtToken);
-            HttpEntity<AuctionDTO> request = new HttpEntity<>(auctionDTO, headers);
+            // Create Item
+            Item item = new Item();
+            item.setName(itemRequest.getName());
+            item.setDescription(itemRequest.getDescription());
+            item.setListedBy(userId);
+            item.setStartingBidPrice(itemRequest.getStartingBid());
 
-            restTemplate.postForEntity(auctionServiceUrl + "/api/auctions/create", request, Void.class);
-        } catch (HttpClientErrorException.Forbidden e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Failed to communicate with Auction service: Unauthorized");
+            // Save Item
+            Item savedItem = itemService.createItem(item);
+
+            // Communicate with AuctionService to create auction
+            AuctionDTO auctionDTO = new AuctionDTO();
+            auctionDTO.setItemId(savedItem.getId());
+            auctionDTO.setAuctionType(itemRequest.getAuctionType());
+            auctionDTO.setStartingBidPrice(itemRequest.getStartingBid());
+            auctionDTO.setCurrentBidPrice(itemRequest.getStartingBid()); // Initialize currentBidPrice
+            auctionDTO.setAuctionEndTime(itemRequest.getAuctionEndTime());
+            auctionDTO.setSellerId(userId);
+            auctionDTO.setStartTime(itemRequest.getAuctionStartTime());
+
+            // If startTime is null, set it to current time
+            if (auctionDTO.getStartTime() == null) {
+                auctionDTO.setStartTime(LocalDateTime.now());
+                logger.info("Auction startTime was null, set to current time: {}", auctionDTO.getStartTime());
+            }
+
+            // Log the AuctionDTO being sent
+            logger.debug("Sending AuctionDTO to AuctionService: {}", auctionDTO);
+
+            // Call AuctionService to create auction
+            ResponseEntity<?> auctionResponse = auctionServiceClient.createAuction(auctionDTO);
+            if (auctionResponse.getStatusCode() != HttpStatus.CREATED) {
+                logger.error("AuctionService responded with status: {}", auctionResponse.getStatusCode());
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating auction.");
+            }
+
+            // Fetch seller's name
+            String sellerName = "Unknown";
+            try {
+                UserDTO userDTO = authenticationServiceClient.getUserById(userId);
+                if (userDTO != null && userDTO.getUsername() != null) {
+                    sellerName = userDTO.getUsername();
+                }
+            } catch (Exception e) {
+                logger.error("Error fetching user with ID: {}", userId, e);
+                // Optionally, handle specific exceptions (e.g., user not found)
+            }
+
+            // Build ItemDTO with auction details and seller's name
+            ItemDTO itemDTO = new ItemDTO();
+            itemDTO.setId(savedItem.getId());
+            itemDTO.setRandomId(savedItem.getRandomId());
+            itemDTO.setName(savedItem.getName());
+            itemDTO.setDescription(savedItem.getDescription());
+            itemDTO.setKeywords(savedItem.getKeywords());
+            itemDTO.setImageUrls(savedItem.getImageUrls());
+            itemDTO.setListedBy(savedItem.getListedBy());
+            itemDTO.setListedByName(sellerName); // Set seller's name
+            itemDTO.setStartingBidPrice(savedItem.getStartingBidPrice());
+            itemDTO.setAuction(auctionDTO);
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(itemDTO);
+        } catch (IllegalArgumentException e) {
+            logger.error("Invalid auction type: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid auction type: " + e.getMessage());
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to communicate with Auction service");
+            logger.error("Error creating listing", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating listing: " + e.getMessage());
         }
-
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedItem);
     }
 
+    /**
+     * Retrieve an item by its ID, including auction details and seller's name.
+     *
+     * @param id ID of the item.
+     * @return ResponseEntity with the item details or error message.
+     */
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getItemById(@PathVariable Long id) {
+        try {
+            Optional<Item> itemOpt = itemService.getItemById(id);
+            if (itemOpt.isPresent()) {
+                Item item = itemOpt.get();
 
+                // Fetch auction details from AuctionService
+                ResponseEntity<AuctionDTO> auctionResponse = auctionServiceClient.getAuctionByItemId(item.getId());
+                AuctionDTO auctionDTO = null;
+                if (auctionResponse.getStatusCode() == HttpStatus.OK) {
+                    auctionDTO = auctionResponse.getBody();
+                }
+
+                // Fetch seller's name from AuthenticationService
+                String sellerName = "Unknown";
+                if (item.getListedBy() != null) {
+                    try {
+                        UserDTO userDTO = authenticationServiceClient.getUserById(item.getListedBy());
+                        if (userDTO != null && userDTO.getUsername() != null) { // Assuming 'name' is 'username'
+                            sellerName = userDTO.getUsername();
+                        }
+                    } catch (Exception e) {
+                        logger.error("Error fetching user with ID: {}", item.getListedBy(), e);
+                        // Optionally, handle specific exceptions (e.g., user not found)
+                    }
+                }
+
+                // Build ItemDTO with auction details and seller's name
+                ItemDTO itemDTO = new ItemDTO();
+                itemDTO.setId(item.getId());
+                itemDTO.setRandomId(item.getRandomId());
+                itemDTO.setName(item.getName());
+                itemDTO.setDescription(item.getDescription());
+                itemDTO.setKeywords(item.getKeywords());
+                itemDTO.setImageUrls(item.getImageUrls());
+                itemDTO.setListedBy(item.getListedBy());
+                itemDTO.setListedByName(sellerName); // Set seller's name
+                itemDTO.setStartingBidPrice(item.getStartingBidPrice());
+                itemDTO.setAuction(auctionDTO);
+
+                return ResponseEntity.ok().body(itemDTO);
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Item not found.");
+            }
+        } catch (Exception e) {
+            logger.error("Error fetching item by ID", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Internal server error.");
+        }
+    }
 
     /**
      * Upload additional images for an existing item.
@@ -129,7 +210,7 @@ public class ItemController {
             @RequestParam("images") MultipartFile[] imageFiles,
             @AuthenticationPrincipal Jwt principal) {
         try {
-            Long userId = Long.parseLong(principal.getSubject());
+            Long userId = principal.getClaim("id");
 
             Optional<Item> itemOpt = itemService.getItemById(id);
             if (itemOpt.isEmpty()) {
@@ -175,7 +256,7 @@ public class ItemController {
                         String newImageName = item.getRandomId() + "-" + (existingImageCount + i + 1) + extension;
                         Path imagePath = itemImageDirAbsolutePath.resolve(newImageName);
                         File dest = imagePath.toFile();
-                        
+
                         // Convert the image to PNG if necessary and save
                         try {
                             BufferedImage bufferedImage = ImageIO.read(imageFile.getInputStream());
@@ -211,122 +292,6 @@ public class ItemController {
             return ResponseEntity.status(500).body("Internal server error.");
         }
     }
-    
-    /**
-     * Update images for an existing item.
-     *
-     * @param id          ID of the item to update.
-     * @param updatedImages List of updated image URLs.
-     * @param principal  JWT principal containing user details.
-     * @return ResponseEntity indicating success or failure.
-     */
-    @PutMapping("/{id}/update-images")
-    public ResponseEntity<?> updateImages(
-        @PathVariable Long id,
-        @RequestBody List<String> updatedImages,
-        @AuthenticationPrincipal Jwt principal
-    ) {
-        try {
-            Long userId = Long.parseLong(principal.getSubject());
-
-            Optional<Item> itemOpt = itemService.getItemById(id);
-            if (itemOpt.isEmpty()) {
-                logger.warn("Item with ID {} not found", id);
-                return ResponseEntity.status(404).body("Item not found.");
-            }
-
-            Item item = itemOpt.get();
-
-            if (!item.getListedBy().equals(userId)) {
-                logger.warn("User {} is not authorized to update images for item {}", userId, id);
-                return ResponseEntity.status(403).body("You are not authorized to update images for this item.");
-            }
-
-            // Determine the item's image directory
-            String itemImageDirPath = imageUploadDir + item.getRandomId() + "/";
-            File itemImageDir = new File(itemImageDirPath);
-
-            if (!itemImageDir.exists()) {
-                return ResponseEntity.status(404).body("Item image directory not found.");
-            }
-
-            List<String> existingImageUrls = item.getImageUrls();
-            List<String> newImageUrls = new ArrayList<>();
-
-            // Handle deletions: Find images to delete
-            for (String existingUrl : existingImageUrls) {
-                if (!updatedImages.contains(existingUrl)) {
-                    // Image has been removed, delete the file
-                    String imageName = existingUrl.substring(existingUrl.lastIndexOf("/") + 1);
-                    File imageFile = new File(itemImageDir, imageName);
-                    if (imageFile.exists()) {
-                        if (imageFile.delete()) {
-                            logger.info("Deleted image file: {}", imageFile.getAbsolutePath());
-                        } else {
-                            logger.warn("Failed to delete image file: {}", imageFile.getAbsolutePath());
-                        }
-                    }
-                }
-            }
-
-            // Now, process the updated images list
-            for (int i = 0; i < updatedImages.size(); i++) {
-                String updatedUrl = updatedImages.get(i);
-                String imageName = updatedUrl.substring(updatedUrl.lastIndexOf("/") + 1);
-                File imageFile = new File(itemImageDir, imageName);
-
-                if (!imageFile.exists()) {
-                    logger.warn("Image file {} does not exist, cannot update.", imageFile.getAbsolutePath());
-                    return ResponseEntity.status(404).body("Image not found: " + updatedUrl);
-                }
-
-                // Rename the image file to match the new order
-                String newImageName = item.getRandomId() + "-" + (i + 1) + ".png";
-                File newImageFile = new File(itemImageDir, newImageName);
-
-                if (!imageFile.getName().equals(newImageName)) {
-                    if (imageFile.renameTo(newImageFile)) {
-                        logger.info("Renamed image file from {} to {}", imageFile.getName(), newImageName);
-                    } else {
-                        logger.error("Failed to rename image file from {} to {}", imageFile.getName(), newImageName);
-                        return ResponseEntity.status(500).body("Failed to rename image: " + imageName);
-                    }
-                }
-
-                String newImageUrl = "/itemimages/" + item.getRandomId() + "/" + newImageName;
-                newImageUrls.add(newImageUrl);
-            }
-
-            // Update the item's image URLs
-            item.setImageUrls(newImageUrls);
-            itemService.saveItem(item);
-            logger.info("Updated item {} with new image URLs: {}", id, newImageUrls);
-
-            // Return the updated image URLs list
-            return ResponseEntity.ok(newImageUrls);
-        } catch (Exception e) {
-            logger.error("Unexpected error during image update for item {}", id, e);
-            return ResponseEntity.status(500).body("Internal server error.");
-        }
-    }
-
-    /**
-     * Retrieve an item by its ID.
-     *
-     * @param id ID of the item.
-     * @return ResponseEntity with the item details or error message.
-     */
-    @GetMapping("/{id}")
-    public ResponseEntity<Object> getItemById(@PathVariable Long id) {
-        try {
-            Optional<Item> itemOpt = itemService.getItemById(id);
-            return itemOpt
-                    .map(item -> ResponseEntity.ok().body((Object) item))
-                    .orElseGet(() -> ResponseEntity.status(404).body((Object) "Item not found."));
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("Internal server error.");
-        }
-    }
 
     /**
      * Retrieve all items listed by the authenticated user.
@@ -344,13 +309,56 @@ public class ItemController {
             }
 
             List<Item> userItems = itemService.getItemsByUser(userId);
-            return ResponseEntity.ok(userItems);
+            List<ItemDTO> userItemDTOs = new ArrayList<>();
+
+            for (Item item : userItems) {
+                // Fetch auction details
+                ResponseEntity<AuctionDTO> auctionResponse = auctionServiceClient.getAuctionByItemId(item.getId());
+                AuctionDTO auctionDTO = null;
+                if (auctionResponse.getStatusCode() == HttpStatus.OK) {
+                    auctionDTO = auctionResponse.getBody();
+                }
+
+                // Fetch seller's name
+                String sellerName = "Unknown";
+                if (item.getListedBy() != null) {
+                    try {
+                        UserDTO userDTO = authenticationServiceClient.getUserById(item.getListedBy());
+                        if (userDTO != null && userDTO.getUsername() != null) { // Assuming 'username' is the name to display
+                            sellerName = userDTO.getUsername();
+                        }
+                    } catch (UserNotFoundException e) {
+                        logger.error("User not found with ID: {}", item.getListedBy(), e);
+                        // Optionally, set to "Unknown" or handle as needed
+                    } catch (Exception e) {
+                        logger.error("Error fetching user with ID: {}", item.getListedBy(), e);
+                        // Optionally, set to "Unknown" or handle as needed
+                    }
+                }
+
+                // Build ItemDTO
+                ItemDTO itemDTO = new ItemDTO();
+                itemDTO.setId(item.getId());
+                itemDTO.setRandomId(item.getRandomId());
+                itemDTO.setName(item.getName());
+                itemDTO.setDescription(item.getDescription());
+                itemDTO.setKeywords(item.getKeywords());
+                itemDTO.setImageUrls(item.getImageUrls());
+                itemDTO.setListedBy(item.getListedBy());
+                itemDTO.setListedByName(sellerName);
+                itemDTO.setStartingBidPrice(item.getStartingBidPrice());
+                itemDTO.setAuction(auctionDTO);
+
+                userItemDTOs.add(itemDTO);
+            }
+
+            return ResponseEntity.ok(userItemDTOs);
         } catch (Exception e) {
             logger.error("Error fetching user items", e);
             return ResponseEntity.status(500).body("Internal server error.");
         }
     }
-    
+
     /**
      * Retrieve all items.
      *
@@ -360,11 +368,53 @@ public class ItemController {
     public ResponseEntity<?> getAllItems() {
         try {
             List<Item> items = itemService.getAllItems();
-            return ResponseEntity.ok(items);
+            List<ItemDTO> itemDTOs = new ArrayList<>();
+
+            for (Item item : items) {
+                // Fetch auction details
+                ResponseEntity<AuctionDTO> auctionResponse = auctionServiceClient.getAuctionByItemId(item.getId());
+                AuctionDTO auctionDTO = null;
+                if (auctionResponse.getStatusCode() == HttpStatus.OK) {
+                    auctionDTO = auctionResponse.getBody();
+                }
+
+                // Fetch seller's name
+                String sellerName = "Unknown";
+                if (item.getListedBy() != null) {
+                    try {
+                        UserDTO userDTO = authenticationServiceClient.getUserById(item.getListedBy());
+                        if (userDTO != null && userDTO.getUsername() != null) { // Assuming 'username' is the name to display
+                            sellerName = userDTO.getUsername();
+                        }
+                    } catch (UserNotFoundException e) {
+                        logger.error("User not found with ID: {}", item.getListedBy(), e);
+                        // Optionally, set to "Unknown" or handle as needed
+                    } catch (Exception e) {
+                        logger.error("Error fetching user with ID: {}", item.getListedBy(), e);
+                        // Optionally, set to "Unknown" or handle as needed
+                    }
+                }
+
+                // Build ItemDTO
+                ItemDTO itemDTO = new ItemDTO();
+                itemDTO.setId(item.getId());
+                itemDTO.setRandomId(item.getRandomId());
+                itemDTO.setName(item.getName());
+                itemDTO.setDescription(item.getDescription());
+                itemDTO.setKeywords(item.getKeywords());
+                itemDTO.setImageUrls(item.getImageUrls());
+                itemDTO.setListedBy(item.getListedBy());
+                itemDTO.setListedByName(sellerName);
+                itemDTO.setStartingBidPrice(item.getStartingBidPrice());
+                itemDTO.setAuction(auctionDTO);
+
+                itemDTOs.add(itemDTO);
+            }
+
+            return ResponseEntity.ok(itemDTOs);
         } catch (Exception e) {
             logger.error("Error fetching all items", e);
             return ResponseEntity.status(500).body("Error fetching items.");
         }
     }
-
 }

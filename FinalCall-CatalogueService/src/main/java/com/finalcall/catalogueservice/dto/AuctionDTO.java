@@ -5,49 +5,60 @@ package com.finalcall.catalogueservice.dto;
 import java.time.LocalDateTime;
 
 public class AuctionDTO {
-    private Long catalogueItemId; // Reference to Catalogue Service's item ID
+    private Long itemId;
     private String auctionType;
     private Double startingBidPrice;
+    private Double currentBidPrice; // Newly added field
     private LocalDateTime auctionEndTime;
+    private Long sellerId;
+    private LocalDateTime startTime;
 
+    // Constructors
     public AuctionDTO() {}
 
-    public AuctionDTO(Long catalogueItemId, String auctionType, Double startingBidPrice, LocalDateTime auctionEndTime) {
-        this.catalogueItemId = catalogueItemId;
+    public AuctionDTO(Long itemId, String auctionType, Double startingBidPrice, Double currentBidPrice,
+                     LocalDateTime auctionEndTime, Long sellerId, LocalDateTime startTime) {
+        this.itemId = itemId;
         this.auctionType = auctionType;
         this.startingBidPrice = startingBidPrice;
+        this.currentBidPrice = currentBidPrice;
         this.auctionEndTime = auctionEndTime;
+        this.sellerId = sellerId;
+        this.startTime = startTime;
     }
 
-    public Long getCatalogueItemId() {
-        return catalogueItemId;
-    }
+    // Getters and Setters
 
-    public void setCatalogueItemId(Long catalogueItemId) {
-        this.catalogueItemId = catalogueItemId;
-    }
+    public Long getItemId() { return itemId; }
+    public void setItemId(Long itemId) { this.itemId = itemId; }
 
-    public String getAuctionType() {
-        return auctionType;
-    }
+    public String getAuctionType() { return auctionType; }
+    public void setAuctionType(String auctionType) { this.auctionType = auctionType; }
 
-    public void setAuctionType(String auctionType) {
-        this.auctionType = auctionType;
-    }
+    public Double getStartingBidPrice() { return startingBidPrice; }
+    public void setStartingBidPrice(Double startingBidPrice) { this.startingBidPrice = startingBidPrice; }
 
-    public Double getStartingBidPrice() {
-        return startingBidPrice;
-    }
+    public LocalDateTime getAuctionEndTime() { return auctionEndTime; }
+    public void setAuctionEndTime(LocalDateTime auctionEndTime) { this.auctionEndTime = auctionEndTime; }
 
-    public void setStartingBidPrice(Double startingBidPrice) {
-        this.startingBidPrice = startingBidPrice;
-    }
+    public Long getSellerId() { return sellerId; }
+    public void setSellerId(Long sellerId) { this.sellerId = sellerId; }
 
-    public LocalDateTime getAuctionEndTime() {
-        return auctionEndTime;
-    }
+    public LocalDateTime getStartTime() { return startTime; }
+    public void setStartTime(LocalDateTime startTime) { this.startTime = startTime; }
+    
+    public Double getCurrentBidPrice() { return currentBidPrice; }
+    public void setCurrentBidPrice(Double currentBidPrice) { this.currentBidPrice = currentBidPrice; }
 
-    public void setAuctionEndTime(LocalDateTime auctionEndTime) {
-        this.auctionEndTime = auctionEndTime;
+    @Override
+    public String toString() {
+        return "AuctionDTO{" +
+                "itemId=" + itemId +
+                ", auctionType='" + auctionType + '\'' +
+                ", startingBidPrice=" + startingBidPrice +
+                ", auctionEndTime=" + auctionEndTime +
+                ", sellerId=" + sellerId +
+                ", startTime=" + startTime +
+                '}';
     }
 }

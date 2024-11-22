@@ -1,24 +1,28 @@
-// src/main/java/com/finalcall/auctionservice/model/Bid.java
-
 package com.finalcall.auctionservice.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "bid")
+@Table(name = "bids")
 public class Bid {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private Double amount;
 
+    @Column(name = "auction_id", nullable = false)
     private Long auctionId;
+
+    @Column(name = "bidder_id", nullable = false)
     private Long bidderId;
+
+    @Column(name = "timestamp", nullable = false)
+    private LocalDateTime timestamp;
+
+    // Constructors
 
     public Bid() {}
 
@@ -26,7 +30,10 @@ public class Bid {
         this.amount = amount;
         this.auctionId = auctionId;
         this.bidderId = bidderId;
+        this.timestamp = LocalDateTime.now();
     }
+
+    // Getters and Setters
 
     public Long getId() {
         return id;
@@ -40,6 +47,14 @@ public class Bid {
         this.amount = amount;
     }
 
+    public Long getAuctionId() {
+        return auctionId;
+    }
+
+    public void setAuctionId(Long auctionId) {
+        this.auctionId = auctionId;
+    }
+
     public Long getBidderId() {
         return bidderId;
     }
@@ -48,11 +63,11 @@ public class Bid {
         this.bidderId = bidderId;
     }
 
-    public Long getAuctionId() {
-        return auctionId;
+    public LocalDateTime getTimestamp() {
+        return timestamp;
     }
 
-    public void setAuctionId(Long auctionId) {
-        this.auctionId = auctionId;
+    public void setTimestamp(LocalDateTime timestamp) {
+        this.timestamp = timestamp;
     }
 }

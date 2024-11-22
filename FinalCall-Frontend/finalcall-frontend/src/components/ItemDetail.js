@@ -1,10 +1,12 @@
+// src/components/ItemDetail.js
+
 import React, { useEffect, useState, useContext, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { authFetch } from '../utils/authFetch';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { AuthContext } from '../context/AuthContext';
 import { Carousel } from 'react-responsive-carousel';
-import 'react-responsive-carousel/lib/styles/carousel.min.css'; // Import carousel styles
+import 'react-responsive-carousel/lib/styles/carousel.min.css';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 
 const ItemDetail = () => {
@@ -20,71 +22,10 @@ const ItemDetail = () => {
     error: '',
     isEditing: false,
     newImageFiles: [],
+    bidAmount: '',
   });
 
-  const { item, biddingHistory, timeLeft, error, isEditing, newImageFiles } = state;
-
-  // Fetch item details and initialize bidding history
-  useEffect(() => {
-    const fetchData = async () => {
-      await fetchItemDetails();
-      // Initialize bidding history with a stub or fetch actual history
-      setState((prev) => ({
-        ...prev,
-        biddingHistory: [
-          {
-            bidderUsername: 'stubUser1',
-            amount: 100.0,
-            timestamp: new Date().toISOString(),
-          },
-        ],
-      }));
-    };
-
-    fetchData();
-
-    // Set up a 30-second interval for fetching fresh item data
-    const fetchInterval = setInterval(() => {
-      fetchItemDetails();
-    }, 30000); // Fetch every 30 seconds
-
-    return () => clearInterval(fetchInterval);
-  }, [id]); // Depend only on 'id'
-
-  useEffect(() => {
-    // Set up a 1-second interval for updating the timer visually
-    const timerInterval = setInterval(() => {
-      updateTimeLeft();
-    }, 1000); // Update timer every second
-
-    return () => clearInterval(timerInterval);
-  }, [item?.auctionEndTime]); // Depend on auction end time so that interval restarts if auction end time changes
-
-  // Fetch item details and update state in a single call
-  const fetchItemDetails = useCallback(async () => {
-    try {
-      const response = await authFetch(`http://localhost:8082/api/items/${id}`, {
-        method: 'GET',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        // Ensure imageUrls is an array to prevent undefined access
-        const imageUrls = Array.isArray(data.imageUrls) ? data.imageUrls : [];
-        setState((prev) => ({
-          ...prev,
-          item: { ...data, imageUrls }, // Merge data with imageUrls
-          timeLeft: calculateTimeLeft(data.auctionEndTime),
-        }));
-      } else {
-        const errorMsg = await response.text();
-        setState((prev) => ({ ...prev, error: errorMsg }));
-      }
-    } catch (err) {
-      setState((prev) => ({ ...prev, error: 'Failed to fetch item details.' }));
-      console.error('Fetch Item Details Error:', err);
-    }
-  }, [id]);
+  const { item, biddingHistory, timeLeft, error, isEditing, newImageFiles, bidAmount } = state;
 
   // Calculate time left based on auction end time
   const calculateTimeLeft = useCallback((endTime) => {
@@ -106,38 +47,157 @@ const ItemDetail = () => {
     }
   }, []);
 
+  // Fetch item details and update state in a single call
+  const fetchItemDetails = useCallback(async () => {
+    try {
+      const response = await authFetch(`http://localhost:8082/api/items/${id}`, {
+        method: 'GET',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Ensure imageUrls is an array to prevent undefined access
+        const imageUrls = Array.isArray(data.imageUrls) ? data.imageUrls : [];
+        setState((prev) => ({
+          ...prev,
+          item: { ...data, imageUrls },
+          timeLeft: calculateTimeLeft(data.auction ? data.auction.auctionEndTime : null),
+        }));
+
+        // Fetch bidding history if auction exists
+        if (data.auction && data.auction.id) {
+          await fetchBiddingHistory(data.auction.id);
+        }
+
+      } else {
+        const errorMsg = await response.text();
+        setState((prev) => ({ ...prev, error: errorMsg }));
+      }
+    } catch (err) {
+      setState((prev) => ({ ...prev, error: 'Failed to fetch item details.' }));
+      console.error('Fetch Item Details Error:', err);
+    }
+  }, [id, calculateTimeLeft]);
+
+  // Fetch bidding history
+  const fetchBiddingHistory = useCallback(async (auctionId) => {
+    try {
+      const response = await authFetch(`http://localhost:8082/api/auctions/${auctionId}/bids`, {
+        method: 'GET',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setState((prev) => ({
+          ...prev,
+          biddingHistory: data,
+        }));
+      } else {
+        const errorMsg = await response.text();
+        setState((prev) => ({ ...prev, error: errorMsg }));
+      }
+    } catch (err) {
+      setState((prev) => ({ ...prev, error: 'Failed to fetch bidding history.' }));
+      console.error('Fetch Bidding History Error:', err);
+    }
+  }, []);
+
+  // Fetch item details and bidding history
+  useEffect(() => {
+    fetchItemDetails();
+
+    // Set up a 30-second interval for fetching fresh item data
+    const fetchInterval = setInterval(() => {
+      fetchItemDetails();
+    }, 30000); // Fetch every 30 seconds
+
+    return () => clearInterval(fetchInterval);
+  }, [fetchItemDetails]);
+
   // Update time left
   const updateTimeLeft = useCallback(() => {
-    if (item?.auctionEndTime) {
-      const newTimeLeft = calculateTimeLeft(item.auctionEndTime);
+    if (item?.auction?.auctionEndTime) {
+      const newTimeLeft = calculateTimeLeft(item.auction.auctionEndTime);
       setState((prev) => ({ ...prev, timeLeft: newTimeLeft }));
     }
-  }, [item, calculateTimeLeft]);
+  }, [item?.auction?.auctionEndTime, calculateTimeLeft]);
+
+  useEffect(() => {
+    // Set up a 1-second interval for updating the timer visually
+    const timerInterval = setInterval(() => {
+      updateTimeLeft();
+    }, 1000); // Update timer every second
+
+    return () => clearInterval(timerInterval);
+  }, [item?.auction?.auctionEndTime, updateTimeLeft]);
+
+  // Handle placing a bid
+  const handlePlaceBid = useCallback(async () => {
+    const auction = item.auction || {};
+    if (!auction.id) {
+      alert('Auction not found.');
+      return;
+    }
+
+    try {
+      const bidRequest = {
+        bidAmount: auction.auctionType === 'DUTCH' ? auction.currentBidPrice : parseFloat(bidAmount),
+        bidderId: user.id,
+      };
+
+      const response = await authFetch(`http://localhost:8082/api/auctions/${auction.id}/bid`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bidRequest),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        alert(data.message);
+        fetchItemDetails(); // Refresh item details to get updated bid price
+        setState((prev) => ({ ...prev, bidAmount: '' })); // Clear bid amount
+      } else {
+        const errorMsg = await response.text();
+        setState((prev) => ({ ...prev, error: errorMsg }));
+      }
+    } catch (err) {
+      setState((prev) => ({ ...prev, error: 'Failed to place bid.' }));
+      console.error('Place Bid Error:', err);
+    }
+  }, [item, bidAmount, user, fetchItemDetails]);
 
   // Handle drag end for image reordering
-  const onDragEnd = useCallback((result) => {
-    if (!result.destination || !item?.imageUrls) return;
+  const onDragEnd = useCallback(
+    (result) => {
+      if (!result.destination || !item?.imageUrls) return;
 
-    const reorderedImages = Array.from(item.imageUrls);
-    const [movedImage] = reorderedImages.splice(result.source.index, 1);
-    reorderedImages.splice(result.destination.index, 0, movedImage);
+      const reorderedImages = Array.from(item.imageUrls);
+      const [movedImage] = reorderedImages.splice(result.source.index, 1);
+      reorderedImages.splice(result.destination.index, 0, movedImage);
 
-    setState((prev) => ({
-      ...prev,
-      item: { ...prev.item, imageUrls: reorderedImages },
-    }));
-  }, [item]);
+      setState((prev) => ({
+        ...prev,
+        item: { ...prev.item, imageUrls: reorderedImages },
+      }));
+    },
+    [item]
+  );
 
   // Handle image deletion
-  const handleDeleteImage = useCallback((index) => {
-    if (!item?.imageUrls) return;
+  const handleDeleteImage = useCallback(
+    (index) => {
+      if (!item?.imageUrls) return;
 
-    const updatedImages = item.imageUrls.filter((_, i) => i !== index);
-    setState((prev) => ({
-      ...prev,
-      item: { ...prev.item, imageUrls: updatedImages },
-    }));
-  }, [item]);
+      const updatedImages = item.imageUrls.filter((_, i) => i !== index);
+      setState((prev) => ({
+        ...prev,
+        item: { ...prev.item, imageUrls: updatedImages },
+      }));
+    },
+    [item]
+  );
 
   // Handle new image file selection
   const handleNewImageChange = useCallback((event) => {
@@ -194,7 +254,7 @@ const ItemDetail = () => {
       });
 
       if (response.ok) {
-        const updatedImageUrls = await response.json(); // Receive the updated image URLs from the server
+        const updatedImageUrls = await response.json();
         alert('Images updated successfully!');
         setState((prev) => ({
           ...prev,
@@ -210,7 +270,7 @@ const ItemDetail = () => {
       console.error('Save Changes Error:', err);
     }
   }, [id, item?.imageUrls]);
-
+  
   // Render error state
   if (error) {
     return (
@@ -241,16 +301,22 @@ const ItemDetail = () => {
     );
   }
 
+  // Extract auction data safely
+  const auction = item.auction || {};
+
+  // Determine if the current user is the owner
+  const isOwner = user && user.username === item.listedBy;
+
   return (
-    <div className="container mx-auto px-4 py-6">
-      <button
-        onClick={() => navigate('/items')}
-        className="mb-4 px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
-      >
-        &larr; Back to Items
-      </button>
-      <div className="flex flex-col md:flex-row">
-        {/* Image Section */}
+     <div className="container mx-auto px-4 py-6">
+       <button
+         onClick={() => navigate('/items')}
+         className="mb-4 px-4 py-2 bg-gray-300 text-gray-800 rounded hover:bg-gray-400"
+       >
+         &larr; Back to Items
+       </button>
+       <div className="flex flex-col md:flex-row">
+         {/* Image Section */}
         <div className="md:w-1/2">
           {item.imageUrls && item.imageUrls.length > 0 ? (
             isEditing ? (
@@ -290,7 +356,13 @@ const ItemDetail = () => {
                 </Droppable>
               </DragDropContext>
             ) : (
-              <Carousel showThumbs={false} showStatus={false} infiniteLoop useKeyboardArrows dynamicHeight>
+              <Carousel
+                showThumbs={false}
+                showStatus={false}
+                infiniteLoop
+                useKeyboardArrows
+                dynamicHeight
+              >
                 {item.imageUrls.map((url, index) => (
                   <div key={index}>
                     <img
@@ -322,85 +394,123 @@ const ItemDetail = () => {
           )}
         </div>
 
-        {/* Details Section */}
-        <div className="md:w-1/2 md:pl-8">
-          <h2 className="text-3xl font-bold mb-4">{item.name}</h2>
-          <p className="mb-2">
-            <strong>Description:</strong> {item.description}
-          </p>
-          <p className="mb-2">
-            <strong>Auction Type:</strong> {item.auctionType}
-          </p>
-          <p className="mb-2">
-            <strong>Starting Bid:</strong> ${item.startingBid.toFixed(2)}
-          </p>
-          <p className="mb-2">
-            <strong>Current Bid:</strong> ${item.currentBid.toFixed(2)}
-          </p>
-          <p className="mb-2">
-            <strong>Current Bidder:</strong> {item.currentBidder || 'No bids yet'}
-          </p>
-          <p className="mb-2">
-            <strong>Listed By:</strong> {item.listedBy}
-          </p>
-          <p className="mb-2">
-            <strong>Time Left:</strong> {timeLeft}
-          </p>
-          <button
-            onClick={() => navigate(`/items/${id}/payment`)}
-            className="mt-4 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-          >
-            Make Payment
-          </button>
-          {user && user.username === item.listedBy && (
-            <button
-              onClick={() => setState((prev) => ({ ...prev, isEditing: !prev.isEditing }))}
-              className="ml-4 mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              {isEditing ? 'Finish Editing' : 'Edit'}
-            </button>
-          )}
-          {isEditing && (
-            <button
-              onClick={handleSaveChanges}
-              className="ml-4 mt-4 px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
-            >
-              Save Changes
-            </button>
-          )}
-        </div>
-      </div>
+		{/* Details Section */}
+		        <div className="md:w-1/2 md:pl-8">
+		          <h2 className="text-3xl font-bold mb-4">{item.name}</h2>
+		          <p className="mb-2">
+		            <strong>Description:</strong> {item.description}
+		          </p>
+		          <p className="mb-2">
+		            <strong>Auction Type:</strong> {auction.auctionType || 'N/A'}
+		          </p>
+		          <p className="mb-2">
+		            <strong>Starting Bid:</strong> $
+		            {auction.startingBidPrice !== undefined ? auction.startingBidPrice.toFixed(2) : 'N/A'}
+		          </p>
+		          <p className="mb-2">
+		            <strong>Current Bid:</strong> $
+		            {auction.currentBidPrice !== undefined ? auction.currentBidPrice.toFixed(2) : 'N/A'}
+		          </p>
+		          <p className="mb-2">
+		            <strong>Listed By:</strong> {item.listedBy}
+		          </p>
+		          <p className="mb-2">
+		            <strong>Time Left:</strong> {timeLeft}
+		          </p>
 
-      {/* Bidding History Section */}
-      <div className="mt-8">
-        <h3 className="text-2xl font-semibold mb-4">Bidding History</h3>
-        {biddingHistory.length > 0 ? (
-          <table className="min-w-full bg-white border">
-            <thead>
-              <tr>
-                <th className="py-2 px-4 border">Bidder</th>
-                <th className="py-2 px-4 border">Bid Amount ($)</th>
-                <th className="py-2 px-4 border">Time</th>
-              </tr>
-            </thead>
-            <tbody>
-              {biddingHistory.map((bid, index) => (
-                <tr key={index} className="text-center">
-                  <td className="py-2 px-4 border">{bid.bidderUsername}</td>
-                  <td className="py-2 px-4 border">{bid.amount.toFixed(2)}</td>
-                  <td className="py-2 px-4 border">
-                    {formatDistanceToNow(parseISO(bid.timestamp), { addSuffix: true })}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p>No bids have been placed yet.</p>
-        )}
-      </div>
-    </div>
-  );
-};
+		          {/* Bidding Section */}
+		          {user && !isOwner && auction.auctionType === 'FORWARD' && (
+		            <div className="mt-4">
+		              <h3 className="text-xl font-semibold mb-2">Place a Bid</h3>
+		              <input
+		                type="number"
+		                placeholder="Enter your bid amount"
+		                value={bidAmount}
+		                onChange={(e) => setState((prev) => ({ ...prev, bidAmount: e.target.value }))}
+		                className="w-full px-3 py-2 border rounded mb-2"
+		              />
+		              <button
+		                onClick={handlePlaceBid}
+		                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+		              >
+		                Place Bid
+		              </button>
+		            </div>
+		          )}
+		          {user && !isOwner && auction.auctionType === 'DUTCH' && (
+		            <div className="mt-4">
+		              <h3 className="text-xl font-semibold mb-2">Buy Now</h3>
+		              <p>
+		                Current Price: $
+		                {auction.currentBidPrice !== undefined
+		                  ? auction.currentBidPrice.toFixed(2)
+		                  : 'N/A'}
+		              </p>
+		              <button
+		                onClick={handlePlaceBid}
+		                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+		              >
+		                Buy at Current Price
+		              </button>
+		            </div>
+		          )}
+		          <div className="mt-4">
+		            <button
+		              onClick={() => navigate(`/items/${id}/payment`)}
+		              className="mt-4 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+		            >
+		              Make Payment
+		            </button>
+		            {isOwner && (
+		              <button
+		                onClick={() => setState((prev) => ({ ...prev, isEditing: !prev.isEditing }))}
+		                className="ml-4 mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+		              >
+		                {isEditing ? 'Finish Editing' : 'Edit'}
+		              </button>
+		            )}
+		            {isEditing && (
+		              <button
+		                onClick={handleSaveChanges}
+		                className="ml-4 mt-4 px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
+		              >
+		                Save Changes
+		              </button>
+		            )}
+		          </div>
+		        </div>
+		      </div>
+
+		      {/* Bidding History Section */}
+		      <div className="mt-8">
+		        <h3 className="text-2xl font-semibold mb-4">Bidding History</h3>
+		        {biddingHistory.length > 0 ? (
+		          <table className="min-w-full bg-white border">
+		            <thead>
+		              <tr>
+		                <th className="py-2 px-4 border">Bidder</th>
+		                <th className="py-2 px-4 border">Bid Amount ($)</th>
+		                <th className="py-2 px-4 border">Time</th>
+		              </tr>
+		            </thead>
+		            <tbody>
+		              {biddingHistory.map((bid, index) => (
+		                <tr key={index} className="text-center">
+		                  <td className="py-2 px-4 border">{bid.bidderUsername}</td>
+		                  <td className="py-2 px-4 border">{bid.amount.toFixed(2)}</td>
+		                  <td className="py-2 px-4 border">
+		                    {formatDistanceToNow(parseISO(bid.timestamp), { addSuffix: true })}
+		                  </td>
+		                </tr>
+		              ))}
+		            </tbody>
+		          </table>
+		        ) : (
+		          <p>No bids have been placed yet.</p>
+		        )}
+		      </div>
+		    </div>
+		  );
+		};
 
 export default ItemDetail;

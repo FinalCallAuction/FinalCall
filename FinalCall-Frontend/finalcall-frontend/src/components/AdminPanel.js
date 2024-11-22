@@ -157,17 +157,20 @@ const AdminPanel = () => {
 
   const handleSaveItem = async () => {
     try {
+      // Create a shallow copy without the Auction field
+      const { auction, ...itemData } = editingItem;
+
       // Update item details
       const response = await authFetch(`http://localhost:8082/api/items/${editingItem.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(editingItem),
+        body: JSON.stringify(itemData), // Send itemData without Auction
       });
 
       if (response.ok) {
-        setItems(items.map((item) => (item.id === editingItem.id ? editingItem : item)));
+        setItems(items.map((item) => (item.id === editingItem.id ? itemData : item)));
 
         // Upload photos if any selected
         if (selectedImages.length > 0) {
@@ -389,7 +392,11 @@ const AdminPanel = () => {
               {items.map((item) => (
                 <tr key={item.id} className="text-center">
                   <td className="py-2 px-4 border">{item.name}</td>
-                  <td className="py-2 px-4 border">{item.currentBid.toFixed(2)}</td>
+                  <td className="py-2 px-4 border">
+                    {item.auction && item.auction.currentBidPrice
+                      ? item.auction.currentBidPrice.toFixed(2)
+                      : 'N/A'}
+                  </td>
                   <td className="py-2 px-4 border">
                     <button
                       onClick={() => handleEditItem(item)}
@@ -437,8 +444,17 @@ const AdminPanel = () => {
                 type="number"
                 name="currentBid"
                 id="currentBid"
-                value={editingItem.currentBid}
-                onChange={handleItemChange}
+                value={editingItem.auction ? editingItem.auction.currentBidPrice : ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setEditingItem((prevItem) => ({
+                    ...prevItem,
+                    auction: {
+                      ...prevItem.auction,
+                      currentBidPrice: parseFloat(value),
+                    },
+                  }));
+                }}
                 className="w-full px-3 py-2 border rounded mt-1"
               />
             </div>
@@ -451,16 +467,14 @@ const AdminPanel = () => {
                 name="photos"
                 id="photos"
                 accept="image/*"
-                multiple
                 onChange={handlePhotoChange}
                 className="w-full px-3 py-2 border rounded mt-1"
+                multiple // Allow multiple file selections
               />
               {selectedImages.length > 0 && (
-                <div className="mt-2">
-                  {selectedImages.map((image, index) => (
-                    <p key={index} className="text-sm text-gray-600">{image.name}</p>
-                  ))}
-                </div>
+                <p className="text-sm text-gray-600 mt-2">
+                  {selectedImages.length} image(s) selected
+                </p>
               )}
             </div>
             <div className="col-span-2">

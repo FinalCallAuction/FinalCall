@@ -1,12 +1,11 @@
-// src/main/java/com/finalcall/auctionservice/websocket/AuctionWSHandler.java
-
 package com.finalcall.auctionservice.websocket;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.finalcall.auctionservice.dto.AuctionDTO;
 import com.finalcall.auctionservice.entity.Auction;
 import com.finalcall.auctionservice.entity.Bid;
-import com.finalcall.auctionservice.repository.AuctionRepository;
 import com.finalcall.auctionservice.repository.BidRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.finalcall.auctionservice.service.AuctionService;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.*;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
@@ -17,15 +16,16 @@ import java.util.*;
 @Component
 public class AuctionWSHandler extends TextWebSocketHandler {
 
-    private final AuctionRepository auctionRepository;
     private final BidRepository bidRepository;
+    private final AuctionService auctionService;
     private final ObjectMapper objectMapper;
     private static Map<String, Set<WebSocketSession>> auctionSessions = new HashMap<>();
 
-    public AuctionWSHandler(AuctionRepository auctionRepository, BidRepository bidRepository,
+    public AuctionWSHandler(BidRepository bidRepository,
+                            AuctionService auctionService,
                             ObjectMapper objectMapper) {
-        this.auctionRepository = auctionRepository;
         this.bidRepository = bidRepository;
+        this.auctionService = auctionService;
         this.objectMapper = objectMapper;
     }
 
@@ -41,13 +41,27 @@ public class AuctionWSHandler extends TextWebSocketHandler {
     }
 
     private void sendAuctionUpdate(WebSocketSession session, Long auctionId) throws IOException {
-        Optional<Auction> auctionOptional = auctionRepository.findById(auctionId);
-        if (auctionOptional.isPresent()) {
-            Auction auction = auctionOptional.get();
-            List<Bid> bids = bidRepository.findByAuctionId(auctionId);
-            // Create a response with auction details and highest bid
-            String response = createAuctionResponse(auction, bids);
-            session.sendMessage(new TextMessage(response));
+        try {
+            // Fetch Auction entity by item ID
+            Optional<Auction> auctionOpt = auctionService.findByItemId(auctionId);
+            if (auctionOpt.isPresent()) {
+                Auction auction = auctionOpt.get();
+                
+                // Map Auction to AuctionDTO
+                AuctionDTO auctionDTO = mapToDTO(auction);
+                
+                List<Bid> bids = bidRepository.findByAuctionId(auctionId);
+                
+                // Create a response with auction details and highest bid
+                String response = createAuctionResponse(auctionDTO, bids);
+                session.sendMessage(new TextMessage(response));
+            } else {
+                session.sendMessage(new TextMessage("{\"error\": \"Auction not found\"}"));
+            }
+        } catch (Exception e) {
+            session.sendMessage(new TextMessage("{\"error\": \"Error fetching auction data\"}"));
+            // Optionally log the error
+            e.printStackTrace();
         }
     }
 
@@ -63,8 +77,7 @@ public class AuctionWSHandler extends TextWebSocketHandler {
         }
     }
 
-    private String createAuctionResponse(Auction auction, List<Bid> bids) {
-        // Implement logic to create a JSON response
+    private String createAuctionResponse(AuctionDTO auction, List<Bid> bids) {
         try {
             // Create a Map to hold the response data
             Map<String, Object> responseData = new HashMap<>();
@@ -82,10 +95,10 @@ public class AuctionWSHandler extends TextWebSocketHandler {
      * Broadcast updated auction details to all connected clients for a specific auction.
      *
      * @param auctionId ID of the auction.
-     * @param message   Updated auction details.
+     * @param auction   Updated auction details.
      * @throws IOException If sending messages fails.
      */
-    public void broadcast(String auctionId, Auction message) throws IOException {
+    public void broadcast(String auctionId, AuctionDTO auction) throws IOException {
         Set<WebSocketSession> sessions = auctionSessions.get(auctionId);
         if (sessions != null) {
             for (WebSocketSession session : sessions) {
@@ -105,5 +118,23 @@ public class AuctionWSHandler extends TextWebSocketHandler {
         String path = session.getUri().getPath();
         String[] segments = path.split("/");
         return segments.length >= 3 ? segments[2] : "0"; // Adjust index as needed
+    }
+
+    /**
+     * Maps an Auction entity to AuctionDTO.
+     *
+     * @param auction The Auction entity.
+     * @return AuctionDTO object.
+     */
+    private AuctionDTO mapToDTO(Auction auction) {
+        AuctionDTO dto = new AuctionDTO();
+        dto.setItemId(auction.getItemId());
+        dto.setAuctionType(auction.getAuctionType());
+        dto.setStartingBidPrice(auction.getStartingBidPrice());
+        dto.setCurrentBidPrice(auction.getCurrentBidPrice());
+        dto.setAuctionEndTime(auction.getAuctionEndTime());
+        dto.setSellerId(auction.getSellerId());
+        dto.setStartTime(auction.getStartTime());
+        return dto;
     }
 }

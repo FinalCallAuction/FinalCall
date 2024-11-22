@@ -1,5 +1,3 @@
-// src/main/java/com/finalcall/catalogueservice/entity/Item.java
-
 package com.finalcall.catalogueservice.entity;
 
 import jakarta.persistence.*;
@@ -18,10 +16,8 @@ public class Item {
     private String randomId;
 
     private String name;
-
-    private String description; // Added
-
-    private String keywords; // Added
+    private String description;
+    private String keywords;
 
     @ElementCollection
     @CollectionTable(name = "item_images", joinColumns = @JoinColumn(name = "item_id"))
@@ -29,7 +25,7 @@ public class Item {
     private List<String> imageUrls = new ArrayList<>();
 
     @Column(name = "listed_by", nullable = false)
-    private Long listedBy; 
+    private Long listedBy;
 
     @Column(name = "starting_bid_price")
     private Double startingBidPrice;
@@ -38,15 +34,7 @@ public class Item {
         this.randomId = UUID.randomUUID().toString().substring(0, 8);
     }
 
-    public Item(String name, Long listedBy, List<String> imageUrls, String description, String keywords, Double startingBidPrice) {
-        this.randomId = UUID.randomUUID().toString().substring(0, 8);
-        this.name = name;
-        this.listedBy = listedBy;
-        this.imageUrls = imageUrls;
-        this.description = description;
-        this.keywords = keywords;
-        this.startingBidPrice = startingBidPrice;
-    }
+    // Getters and Setters
 
     public Long getId() {
         return id;
@@ -68,14 +56,13 @@ public class Item {
         this.name = name;
     }
 
-    
-    public String getDescription() {
-        return description;
-    }
+	public String getDescription() {
+		return description;
+	}
 
-    public void setDescription(String description) { 
-        this.description = description;
-    }
+	public void setDescription(String description) { 
+		this.description = description;
+	}
 
     public String getKeywords() {
         return keywords;

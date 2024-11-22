@@ -10,10 +10,42 @@ const ItemsPage = () => {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
-  const [auctions, setAuctions] = useState([]);
+  const [sellerNames, setSellerNames] = useState({}); // To store seller names keyed by user ID
   const [error, setError] = useState('');
 
-  const fetchItemsAndAuctions = async () => {
+  // Function to fetch seller names based on user IDs
+  const fetchSellerNames = async (userIds) => {
+    const uniqueUserIds = [...new Set(userIds)]; // Remove duplicates
+    const newSellerNames = { ...sellerNames };
+
+    try {
+      // Corrected endpoint: /api/user/{id}
+      await Promise.all(
+        uniqueUserIds.map(async (id) => {
+          if (!newSellerNames[id]) { // Fetch only if not already fetched
+            const response = await authFetch(`http://localhost:8081/api/user/${id}`, {
+              method: 'GET',
+            });
+
+            if (response.ok) {
+              const userData = await response.json();
+              newSellerNames[id] = userData.username; // Corrected to 'username'
+            } else {
+              newSellerNames[id] = 'Unknown'; // Fallback if user not found
+              console.error(`Failed to fetch user with ID: ${id}`);
+            }
+          }
+        })
+      );
+
+      setSellerNames(newSellerNames);
+    } catch (err) {
+      console.error('Error fetching seller names:', err);
+      // Optionally, set error state or handle accordingly
+    }
+  };
+
+  const fetchItems = async () => {
     try {
       // Fetch items from Catalogue Service
       const itemsResponse = await authFetch('http://localhost:8082/api/items', {
@@ -30,51 +62,31 @@ const ItemsPage = () => {
       setItems(itemsData);
       console.log('Fetched Items:', itemsData); // Debugging
 
-      // Extract item IDs
-      const itemIds = itemsData.map(item => item.id);
-
-      if (itemIds.length === 0) {
-        // No items to fetch auctions for
-        return;
-      }
-
-      // Fetch auctions from Auction Service
-      const auctionsResponse = await authFetch(`http://localhost:8084/api/auctions/by-item-ids?itemIds=${itemIds.join(',')}`, {
-        method: 'GET',
-      });
-
-      if (!auctionsResponse.ok) {
-        const errorMsg = await auctionsResponse.text();
-        setError(`Error fetching auctions: ${errorMsg}`);
-        return;
-      }
-
-      const auctionsData = await auctionsResponse.json();
-      setAuctions(auctionsData);
-      console.log('Fetched Auctions:', auctionsData); // Debugging
+      // Extract seller IDs to fetch their names
+      const sellerIds = itemsData.map(item => item.listedBy);
+      await fetchSellerNames(sellerIds);
 
     } catch (err) {
-      setError('Failed to fetch items or auctions.');
-      console.error('Fetch Items/Auctions Error:', err);
+      setError('Failed to fetch items.');
+      console.error('Fetch Items Error:', err);
     }
   };
 
   useEffect(() => {
-    fetchItemsAndAuctions();
+    fetchItems();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Merge items and auctions
+  // Process items to extract auction data and map seller names
   const mergedItems = items.map(item => {
-    const auction = auctions.find(a => Number(a.catalogueItemId) === Number(item.id));
+    const auction = item.auction;
     return {
       ...item,
-      auctionType: auction ? auction.auctionType : 'N/A',
-      startingBidPrice: auction ? auction.startingBidPrice : 'N/A',
-      currentBidPrice: auction ? auction.currentBidPrice : 'N/A',
+      currentBidPrice: auction && auction.currentBidPrice != null ? auction.currentBidPrice : item.startingBidPrice, // Use startingBidPrice if currentBidPrice is null
       auctionEndTime: auction ? auction.auctionEndTime : 'N/A',
+      sellerName: sellerNames[item.listedBy] || 'Loading...',
     };
   });
-
 
   console.log('Merged Items:', mergedItems); // Debugging
 
@@ -117,15 +129,14 @@ const ItemsPage = () => {
               >
                 {item.name}
               </h2>
+              {/* Display the seller's name */}
+              <p>
+                <strong>Listed By:</strong> {item.sellerName}
+              </p>
               {/* Auction-specific details */}
               <p>
-                <strong>Auction Type:</strong> {item.auctionType}
-              </p>
-              <p>
-                <strong>Starting Bid:</strong> ${item.startingBidPrice !== 'N/A' ? item.startingBidPrice.toFixed(2) : 'N/A'}
-              </p>
-              <p>
-                <strong>Current Bid:</strong> ${item.currentBidPrice !== 'N/A' ? item.currentBidPrice.toFixed(2) : 'N/A'}
+                <strong>Current Bid:</strong> $
+                {typeof item.currentBidPrice === 'number' ? item.currentBidPrice.toFixed(2) : 'N/A'}
               </p>
               <p>
                 <strong>Time Left:</strong>{' '}
@@ -133,7 +144,7 @@ const ItemsPage = () => {
                   (() => {
                     const now = new Date();
                     const auctionEnd = new Date(item.auctionEndTime);
-                    if (!isNaN(auctionEnd)) { // Check if the date is valid
+                    if (!isNaN(auctionEnd)) {
                       if (auctionEnd > now) {
                         return `${formatDistanceToNow(auctionEnd, { addSuffix: true })}`;
                       } else {

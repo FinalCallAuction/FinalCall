@@ -1,5 +1,3 @@
-// src/main/java/com/finalcall/auctionservice/entity/Auction.java
-
 package com.finalcall.auctionservice.entity;
 
 import jakarta.persistence.*;
@@ -15,9 +13,10 @@ public class Auction {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "catalogue_item_id", nullable = false, unique = true)
-    private Long catalogueItemId;
-    
+    // Reference to the Item ID from the CatalogueService
+    @Column(name = "item_id", nullable = false, unique = true)
+    private Long itemId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "auction_type", nullable = false)
     private AuctionType auctionType;
@@ -40,30 +39,33 @@ public class Auction {
 
     @Column(name = "start_time", nullable = false)
     private LocalDateTime startTime;
+    
+    @Column(name = "price_decrement")
+    private Double priceDecrement; // For Dutch Auction
 
-    public Auction() {}
+    @Column(name = "minimum_price")
+    private Double minimumPrice; // For Dutch Auction
 
-    public Auction(Long catalogueItemId, AuctionType auctionType, Double startingBidPrice, Double currentBidPrice, LocalDateTime auctionEndTime, Long sellerId, LocalDateTime startTime) {
-        this.catalogueItemId = catalogueItemId;
-        this.auctionType = auctionType;
-        this.startingBidPrice = startingBidPrice;
-        this.currentBidPrice = currentBidPrice;
-        this.auctionEndTime = auctionEndTime;
-        this.status = AuctionStatus.ACTIVE;
-        this.sellerId = sellerId;
-        this.startTime = startTime;
+    @Column(name = "current_bidder_id")
+    private Long currentBidderId; // ID of the current highest bidder
+
+    // Constructors
+    public Auction() {
+        this.status = AuctionStatus.ACTIVE; // Set default status
     }
+
+    // Getters and Setters
 
     public Long getId() {
         return id;
     }
 
-    public Long getCatalogueItemId() {
-        return catalogueItemId;
+    public Long getItemId() {
+        return itemId;
     }
 
-    public void setCatalogueItemId(Long catalogueItemId) {
-        this.catalogueItemId = catalogueItemId;
+    public void setItemId(Long itemId) {
+        this.itemId = itemId;
     }
 
     public AuctionType getAuctionType() {
@@ -98,6 +100,22 @@ public class Auction {
         this.currentBidPrice = currentBidPrice;
     }
 
+    public Double getPriceDecrement() {
+        return priceDecrement;
+    }
+
+    public void setPriceDecrement(Double priceDecrement) {
+        this.priceDecrement = priceDecrement;
+    }
+
+    public Double getMinimumPrice() {
+        return minimumPrice;
+    }
+
+    public void setMinimumPrice(Double minimumPrice) {
+        this.minimumPrice = minimumPrice;
+    }
+
     public LocalDateTime getAuctionEndTime() {
         return auctionEndTime;
     }
@@ -120,6 +138,14 @@ public class Auction {
 
     public void setStartTime(LocalDateTime startTime) {
         this.startTime = startTime;
+    }
+
+    public Long getCurrentBidderId() {
+        return currentBidderId;
+    }
+
+    public void setCurrentBidderId(Long currentBidderId) {
+        this.currentBidderId = currentBidderId;
     }
 
     /**

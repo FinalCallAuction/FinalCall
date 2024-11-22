@@ -20,7 +20,6 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowedHeaders("*");
     }
 
-
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         if (!imageUploadDir.endsWith("/")) {

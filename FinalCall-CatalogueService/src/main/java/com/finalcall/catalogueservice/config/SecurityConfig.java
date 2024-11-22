@@ -33,6 +33,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/auctions/**").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/auctions/**").permitAll()
                 .anyRequest().authenticated() 
             )
             .oauth2ResourceServer(oauth2 -> oauth2
