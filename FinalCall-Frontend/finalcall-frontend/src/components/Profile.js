@@ -2,68 +2,65 @@
 
 import React, { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
 import { authFetch } from '../utils/authFetch';
+import { useNavigate } from 'react-router-dom';
 
 const Profile = () => {
-  const { user, logout } = useContext(AuthContext);
+  const { user, token, logout } = useContext(AuthContext);
   const navigate = useNavigate();
-  const [userDetails, setUserDetails] = useState(null);
-  const [activeListings, setActiveListings] = useState([]);
+  const [profile, setProfile] = useState(null);
   const [error, setError] = useState('');
 
+  const fetchProfile = async () => {
+    try {
+      // Assuming the user object has an 'id' field. If not, adjust accordingly.
+      const response = await authFetch(`/api/user/all`, {
+        method: 'GET',
+      }, logout);
+
+      if (response && response.ok) {
+        const users = await response.json();
+        // Find the current user in the list
+        const currentUser = users.find(u => u.username === user.username);
+        if (currentUser) {
+          setProfile(currentUser);
+        } else {
+          setError('User not found.');
+        }
+      } else {
+        const errorMsg = await response.text();
+        setError(`Error fetching profile: ${errorMsg}`);
+      }
+    } catch (err) {
+      console.error('Profile Fetch Error:', err);
+      setError('Failed to fetch profile.');
+    }
+  };
+
   useEffect(() => {
-    if (!user) {
-      navigate('/login');
-    } else {
-      fetchUserDetails();
-      fetchActiveListings();
-    }
+    fetchProfile();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, []);
 
-  const fetchUserDetails = async () => {
-    try {
-      const response = await authFetch(`http://localhost:8081/api/user/${user.id}`, {
-        method: 'GET',
-      }, logout);
-
-      if (response.ok) {
-        const data = await response.json();
-        setUserDetails(data);
-      } else {
-        const errorMsg = await response.text();
-        setError(`Error: ${errorMsg}`);
-      }
-    } catch (err) {
-      setError('Failed to fetch user details.');
-      console.error('Fetch User Details Error:', err);
-    }
-  };
-
-  const fetchActiveListings = async () => {
-    try {
-      const response = await authFetch(`http://localhost:8082/api/items/user/active-listings`, {
-        method: 'GET',
-      }, logout);
-
-      if (response.ok) {
-        const data = await response.json();
-        setActiveListings(data);
-      } else {
-        const errorMsg = await response.text();
-        setError(errorMsg);
-      }
-    } catch (err) {
-      setError('Failed to fetch active listings.');
-      console.error('Fetch Active Listings Error:', err);
-    }
-  };
-
-  if (!userDetails) {
+  if (error) {
     return (
       <div className="container mx-auto px-4 py-6">
-        <p>Loading profile details...</p>
+        <h1 className="text-3xl font-bold mb-4">Profile</h1>
+        <div
+          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
+          role="alert"
+        >
+          {error}
+        </div>
+      </div>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <h1 className="text-3xl font-bold mb-4">Profile</h1>
+        <p>Loading profile...</p>
       </div>
     );
   }
@@ -71,81 +68,18 @@ const Profile = () => {
   return (
     <div className="container mx-auto px-4 py-6">
       <h1 className="text-3xl font-bold mb-4">Profile</h1>
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold">Username: {userDetails.username}</h2>
-        <h2 className="text-xl font-semibold">Email: {userDetails.email}</h2>
-        <h2 className="text-xl font-semibold">First Name: {userDetails.firstName}</h2>
-        <h2 className="text-xl font-semibold">Last Name: {userDetails.lastName}</h2>
-        <h2 className="text-xl font-semibold">Address:</h2>
-        <p className="ml-4">
-          {userDetails.streetAddress}, {userDetails.province}, {userDetails.country}, {userDetails.postalCode}
-        </p>
-        <h2 className="text-xl font-semibold">Seller Status: {userDetails.isSeller ? 'Seller' : 'Buyer'}</h2>
+      <div className="bg-white p-6 rounded shadow-md">
+        <p><strong>Username:</strong> {profile.username}</p>
+        <p><strong>Email:</strong> {profile.email}</p>
+        <p><strong>First Name:</strong> {profile.firstName}</p>
+        <p><strong>Last Name:</strong> {profile.lastName}</p>
+        <p><strong>Street Address:</strong> {profile.streetAddress}</p>
+        <p><strong>Province/State:</strong> {profile.province}</p>
+        <p><strong>Country:</strong> {profile.country}</p>
+        <p><strong>Postal Code:</strong> {profile.postalCode}</p>
+        <p><strong>Seller:</strong> {profile.isSeller ? 'Yes' : 'No'}</p>
+        {/* Add options to edit profile, change password, etc. */}
       </div>
-      <div className="flex space-x-4 mb-6">
-        <Link
-          to="/change-password"
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          Change Password
-        </Link>
-        <Link
-          to="/change-address"
-          className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600"
-        >
-          Change Address
-        </Link>
-      </div>
-      <h2 className="text-2xl font-bold mb-4">Active Listings</h2>
-      {error && (
-        <div
-          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4"
-          role="alert"
-        >
-          <strong className="font-bold">Error:</strong>
-          <span className="block sm:inline"> {error}</span>
-        </div>
-      )}
-      {activeListings.length === 0 ? (
-        <p>You have no active listings.</p>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {activeListings.map((item) => (
-            <div key={item.id} className="bg-white p-4 rounded shadow">
-              {item.imageUrl ? (
-                <img
-                  src={`http://localhost:8082${item.imageUrl}`}
-                  alt={item.name}
-                  className="w-full h-48 object-cover rounded mb-4 cursor-pointer"
-                  onClick={() => navigate(`/items/${item.id}`)}
-                />
-              ) : (
-                <img
-                  src="https://via.placeholder.com/150"
-                  alt="Placeholder"
-                  className="w-full h-48 object-cover rounded mb-4 cursor-pointer"
-                  onClick={() => navigate(`/items/${item.id}`)}
-                />
-              )}
-              <h2 className="text-xl font-semibold mb-2 cursor-pointer" onClick={() => navigate(`/items/${item.id}`)}>
-                {item.name}
-              </h2>
-              <p>
-                <strong>Auction Type:</strong> {item.auctionType}
-              </p>
-              <p>
-                <strong>Current Bid:</strong> ${item.currentBid.toFixed(2)}
-              </p>
-              <p>
-                <strong>Time Left:</strong> {new Date(item.auctionEndTime) > new Date() ? 'Ongoing' : 'Ended'}
-              </p>
-              <Link to={`/items/${item.id}`} className="mt-4 inline-block text-blue-500 hover:text-blue-700">
-                View Details
-              </Link>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 };

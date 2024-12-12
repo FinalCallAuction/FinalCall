@@ -1,34 +1,30 @@
 // src/utils/authFetch.js
-
 export const authFetch = async (url, options = {}, logout) => {
-  const token = localStorage.getItem('token');
+  const userStr = localStorage.getItem('finalcall_user');
+  const user = userStr ? JSON.parse(userStr) : null;
 
-  if (!token) {
-    console.error('No token found. Redirecting to login.');
-    logout();
-    return;
-  }
-
-  // Set Authorization header
-  options.headers = {
-    ...options.headers,
-    'Authorization': `Bearer ${token}`,
+  const headers = {
     'Content-Type': 'application/json',
+    ...options.headers,
   };
 
-  try {
-    const response = await fetch(url, options);
+  if (user && user.accessToken) {
+    headers.Authorization = `Bearer ${user.accessToken}`;
+  }
 
-    if (response.status === 401) {
-      // Handle unauthorized (possibly expired token)
-      console.error('Unauthorized. Token may have expired. Logging out...');
+  try {
+    const response = await fetch(url, { ...options, headers });
+
+    if (response.status === 401 && logout) {
+      // Token is invalid or expired
       logout();
-      return;
+      // Optionally, alert the user or navigate to login
+      // alert('Session expired. Please login again.');
     }
 
     return response;
   } catch (error) {
-    console.error('authFetch Error:', error);
+    console.error('authFetch error:', error);
     throw error;
   }
 };

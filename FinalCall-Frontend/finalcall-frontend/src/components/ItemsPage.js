@@ -1,37 +1,35 @@
 // src/components/ItemsPage.js
-
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { authFetch } from '../utils/authFetch';
-import { formatDistanceToNow } from 'date-fns'; // Ensure this import is present
+import { formatDistanceToNow } from 'date-fns';
 
 const ItemsPage = () => {
-  const { user, logout } = useContext(AuthContext);
+  const { logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
-  const [sellerNames, setSellerNames] = useState({}); // To store seller names keyed by user ID
+  const [sellerNames, setSellerNames] = useState({});
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true); // Add loading state
 
-  // Function to fetch seller names based on user IDs
   const fetchSellerNames = async (userIds) => {
-    const uniqueUserIds = [...new Set(userIds)]; // Remove duplicates
+    const uniqueUserIds = [...new Set(userIds)];
     const newSellerNames = { ...sellerNames };
 
     try {
-      // Corrected endpoint: /api/user/{id}
       await Promise.all(
         uniqueUserIds.map(async (id) => {
-          if (!newSellerNames[id]) { // Fetch only if not already fetched
+          if (!newSellerNames[id]) {
             const response = await authFetch(`http://localhost:8081/api/user/${id}`, {
               method: 'GET',
-            }, logout); // Pass logout to handle unauthorized responses
+            }, logout);
 
-            if (response.ok) {
+            if (response && response.ok) {
               const userData = await response.json();
-              newSellerNames[id] = userData.username; // Corrected to 'username'
+              newSellerNames[id] = userData.username || userData.email;
             } else {
-              newSellerNames[id] = 'Unknown'; // Fallback if user not found
+              newSellerNames[id] = 'Unknown';
               console.error(`Failed to fetch user with ID: ${id}`);
             }
           }
@@ -41,34 +39,38 @@ const ItemsPage = () => {
       setSellerNames(newSellerNames);
     } catch (err) {
       console.error('Error fetching seller names:', err);
-      // Optionally, set error state or handle accordingly
     }
   };
 
   const fetchItems = async () => {
+    setLoading(true);
     try {
-      // Fetch items from Catalogue Service
-      const itemsResponse = await authFetch('http://localhost:8082/api/items', {
+      // Use the absolute URL to the catalogue/auction server's items endpoint
+      const itemsResponse = await fetch('http://localhost:8082/api/items', { // Replace with actual URL
         method: 'GET',
-      }, logout); // Pass logout to handle unauthorized responses
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
       if (!itemsResponse.ok) {
         const errorMsg = await itemsResponse.text();
         setError(`Error fetching items: ${errorMsg}`);
+        setLoading(false);
         return;
       }
 
       const itemsData = await itemsResponse.json();
       setItems(itemsData);
-      console.log('Fetched Items:', itemsData); // Debugging
+      console.log('Fetched Items:', itemsData);
 
-      // Extract seller IDs to fetch their names
       const sellerIds = itemsData.map(item => item.listedBy);
       await fetchSellerNames(sellerIds);
-
     } catch (err) {
       setError('Failed to fetch items.');
       console.error('Fetch Items Error:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -77,18 +79,24 @@ const ItemsPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Process items to extract auction data and map seller names
   const mergedItems = items.map(item => {
     const auction = item.auction;
     return {
       ...item,
-      currentBidPrice: auction && auction.currentBidPrice != null ? auction.currentBidPrice : item.startingBidPrice, // Use startingBidPrice if currentBidPrice is null
+      currentBidPrice: auction && auction.currentBidPrice != null ? auction.currentBidPrice : item.startingBidPrice,
       auctionEndTime: auction ? auction.auctionEndTime : 'N/A',
       sellerName: sellerNames[item.listedBy] || 'Loading...',
     };
   });
 
-  console.log('Merged Items:', mergedItems); // Debugging
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-6">
+        <h1 className="text-3xl font-bold mb-4">Browse Items</h1>
+        <p>Loading items...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -107,10 +115,9 @@ const ItemsPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {mergedItems.map((item) => (
             <div key={item.id} className="bg-white p-4 rounded shadow">
-              {/* Use the imageUrls array to get the first image */}
               {item.imageUrls && item.imageUrls.length > 0 ? (
                 <img
-                  src={`http://localhost:8082${item.imageUrls[0]}`}
+                  src={`${item.imageUrls[0]}`} // Adjust based on actual image URL structure
                   alt={item.name}
                   className="w-full h-48 object-cover rounded mb-4 cursor-pointer"
                   onClick={() => navigate(`/items/${item.id}`)}
@@ -129,11 +136,9 @@ const ItemsPage = () => {
               >
                 {item.name}
               </h2>
-              {/* Display the seller's name */}
               <p>
                 <strong>Listed By:</strong> {item.sellerName}
               </p>
-              {/* Auction-specific details */}
               <p>
                 <strong>Current Bid:</strong> $
                 {typeof item.currentBidPrice === 'number' ? item.currentBidPrice.toFixed(2) : 'N/A'}
