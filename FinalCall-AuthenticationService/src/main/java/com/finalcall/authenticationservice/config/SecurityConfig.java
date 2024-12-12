@@ -28,15 +28,16 @@ public class SecurityConfig {
     public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
-            .cors(Customizer.withDefaults()) // Enable CORS
+            .cors(Customizer.withDefaults())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/register").permitAll()
-                // All other endpoints require authentication
-                .anyRequest().authenticated()
+                .requestMatchers("/api/user/**").authenticated() // Protect user endpoints
+                .anyRequest().permitAll()
             )
-            .formLogin(Customizer.withDefaults())
-            .httpBasic(Customizer.withDefaults());
+            // Add resource server configuration here
+            .oauth2ResourceServer(oauth2 -> oauth2.jwt());
 
         return http.build();
     }
+
 }

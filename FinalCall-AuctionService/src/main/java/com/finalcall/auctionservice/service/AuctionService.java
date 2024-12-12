@@ -19,9 +19,12 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Service
 public class AuctionService {
@@ -216,4 +219,23 @@ public class AuctionService {
         dto.setMinimumPrice(auction.getMinimumPrice());
         return dto;
     }
+    
+    public List<Long> getItemsUserHasBidOn(Long userId) {
+        List<Bid> userBids = bidRepository.findAllByBidderId(userId);
+        // Extract the distinct auctionIds from these bids
+        Set<Long> auctionIds = new HashSet<>();
+        for (Bid b : userBids) {
+            auctionIds.add(b.getAuctionId());
+        }
+
+        // For each auctionId, get the auction and itemId
+        List<Long> itemIds = new ArrayList<>();
+        for (Long auctionId : auctionIds) {
+            Optional<Auction> auctionOpt = auctionRepository.findById(auctionId);
+            auctionOpt.ifPresent(a -> itemIds.add(a.getItemId()));
+        }
+
+        return itemIds;
+    }
+
 }

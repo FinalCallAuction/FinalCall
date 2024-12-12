@@ -148,5 +148,29 @@ public class UserController {
             return ResponseEntity.status(500).body("Failed to fetch users");
         }
     }
+    
+    @GetMapping("/username/{username}")
+    public ResponseEntity<?> getUserByUsername(@PathVariable("username") String username) {
+        Optional<User> userOpt = userService.findByUsername(username);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            UserDTO userDTO = new UserDTO(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getStreetAddress(),
+                user.getProvince(),
+                user.getCountry(),
+                user.getPostalCode(),
+                user.getIsSeller()
+            );
+            return ResponseEntity.ok(userDTO);
+        } else {
+            return ResponseEntity.status(404).body("User not found");
+        }
+    }
+
 
 }

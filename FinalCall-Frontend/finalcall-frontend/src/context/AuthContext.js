@@ -5,7 +5,6 @@ export const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
-    // Load user from localStorage if available
     const savedUser = localStorage.getItem('finalcall_user');
     return savedUser ? JSON.parse(savedUser) : null;
   });

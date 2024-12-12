@@ -152,4 +152,16 @@ public class AuctionController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error updating auction images.");
         }
     }
+    
+    @GetMapping("/user/{userId}/bids")
+    public ResponseEntity<?> getItemsUserHasBidOn(@PathVariable Long userId) {
+        try {
+            List<Long> itemIds = auctionService.getItemsUserHasBidOn(userId);
+            return ResponseEntity.ok(itemIds);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error fetching user-bidded items.");
+        }
+    }
+
 }

@@ -52,11 +52,26 @@ const Callback = () => {
         const username = payload.sub || '';
         const email = payload.email || '';
 
-        // Optionally, fetch additional user details using accessToken
-        // Example: const userInfoResponse = await fetch('http://localhost:8081/api/user/me', { headers: { Authorization: `Bearer ${accessToken}` } });
-        // Handle userInfoResponse...
+        // Fetch full user details by username
+        const userResp = await fetch(`http://localhost:8081/api/user/username/${encodeURIComponent(username)}`, {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
+        if (!userResp.ok) {
+          const userErr = await userResp.text();
+          throw new Error(userErr);
+        }
+        const userData = await userResp.json();
 
-        setUser({ username, email, accessToken });
+        // Set user with full details including id, isSeller
+        setUser({ 
+          username: userData.username, 
+          email: userData.email, 
+          id: userData.id,
+          isSeller: userData.isSeller,
+          accessToken 
+        });
         localStorage.removeItem('oauth_state'); // Clean up
         navigate('/');
       } catch (err) {

@@ -19,10 +19,17 @@ const Navbar = () => {
       <Link to="/" className="font-bold text-xl">
         FinalCall
       </Link>
-      <div>
+      <div className="flex items-center space-x-4">
+        {user && (
+          <>
+            <Link to="/create-item" className="hover:underline">
+              List Item
+            </Link>
+          </>
+        )}
         {!user ? (
           <>
-            <Link to="/login" className="mr-4 hover:underline">
+            <Link to="/login" className="hover:underline">
               Login
             </Link>
             <Link to="/register" className="hover:underline">
@@ -31,7 +38,7 @@ const Navbar = () => {
           </>
         ) : (
           <>
-            <span className="mr-4">Hello, {displayName}</span>
+            <span>Hello, {displayName}</span>
             <button
               onClick={handleLogout}
               className="bg-red-500 px-3 py-1 rounded hover:bg-red-600"
