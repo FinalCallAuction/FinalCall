@@ -9,6 +9,7 @@ import Register from './components/Register';
 import Callback from './components/Callback';
 import Profile from './components/Profile';
 import CreateItem from './components/CreateItem';
+import ItemDetail from './components/ItemDetail';
 
 const App = () => {
   const { user } = useContext(AuthContext);
@@ -20,6 +21,7 @@ const App = () => {
         <Route path="/" element={<ItemsPage />} />
         <Route path="/items" element={<ItemsPage />} />
         <Route path="/login" element={!user ? <Login /> : <Navigate to="/" />} />
+		<Route path="/items/:id" element={<ItemDetail />} />
         <Route path="/register" element={!user ? <Register /> : <Navigate to="/" />} />
         <Route path="/callback" element={<Callback />} />
         <Route path="/profile" element={user ? <Profile /> : <Navigate to="/login" />} />

@@ -5,6 +5,7 @@ package com.finalcall.catalogueservice.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
@@ -24,8 +25,12 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .csrf(csrf -> csrf.disable()) // Disable CSRF since we're using tokens
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/items/**").authenticated() // Items API requires authentication
-                .anyRequest().permitAll() // Allow any other requests
+                // Permit all GET requests to /api/items/**
+                .requestMatchers(HttpMethod.GET, "/api/items/**").permitAll()
+                // Require authentication for all other HTTP methods on /api/items/**
+                .requestMatchers("/api/items/**").authenticated()
+                // Allow any other requests without authentication
+                .anyRequest().permitAll()
             )
             .oauth2ResourceServer(oauth2 -> oauth2.jwt()); // OAuth2 Resource Server for JWT validation
 

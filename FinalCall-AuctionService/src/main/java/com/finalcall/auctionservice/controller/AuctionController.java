@@ -7,6 +7,8 @@ import com.finalcall.auctionservice.entity.Auction;
 import com.finalcall.auctionservice.entity.AuctionType;
 import com.finalcall.auctionservice.service.AuctionService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
@@ -17,7 +19,7 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auctions")
-@CrossOrigin(origins = "*") // Adjust origins as necessary
+@CrossOrigin(origins = "http://localhost:3000") // Restrict to frontend origin
 public class AuctionController {
 
     @Autowired
@@ -32,6 +34,7 @@ public class AuctionController {
     @PostMapping("/create")
     public ResponseEntity<?> createAuction(@Valid @RequestBody AuctionDTO auctionDTO) {
         try {
+
             // Basic validation is handled by @Valid and DTO constraints
 
             // Additional validation for DUTCH auctions
@@ -50,8 +53,6 @@ public class AuctionController {
             Auction createdAuction = auctionService.createAuction(auctionDTO);
             return ResponseEntity.status(HttpStatus.CREATED).body(createdAuction);
         } catch (Exception e) {
-            // Log exception
-            e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error creating auction.");
         }
     }

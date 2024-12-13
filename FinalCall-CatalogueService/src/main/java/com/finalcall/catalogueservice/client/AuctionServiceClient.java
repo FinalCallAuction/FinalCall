@@ -18,10 +18,10 @@ public interface AuctionServiceClient {
      * Create a new auction.
      *
      * @param auctionDTO Details of the auction to create.
-     * @return ResponseEntity with the result of the creation.
+     * @return ResponseEntity with the created AuctionDTO.
      */
-    @PostMapping("/api/auctions")
-    ResponseEntity<?> createAuction(@RequestBody AuctionDTO auctionDTO);
+    @PostMapping("/api/auctions/create")
+    ResponseEntity<AuctionDTO> createAuction(@RequestBody AuctionDTO auctionDTO);
 
     /**
      * Get auction details by item ID.
