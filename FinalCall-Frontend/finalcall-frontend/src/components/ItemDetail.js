@@ -136,37 +136,66 @@ const ItemDetail = () => {
     return () => clearInterval(timerInterval);
   }, [item?.auction?.auctionEndTime, updateTimeLeft]);
 
-  // Handle placing a bid
+  // Updated handlePlaceBid function with proper auction ID handling
   const handlePlaceBid = useCallback(async () => {
-    const auction = item.auction || {};
-    if (!auction.id) {
-      alert('Auction not found.');
+    const auction = item?.auction;
+    if (!auction) {
+      setState((prev) => ({ 
+        ...prev, 
+        bidError: 'Auction information not found.',
+        bidSuccess: '' 
+      }));
       return;
     }
 
-    console.log('Placing bid for Auction ID:', auction.id); // Debugging
+    // Add check for auction ID
+    if (!auction.id) {
+      console.error('Auction ID is missing:', auction);
+      setState((prev) => ({ 
+        ...prev, 
+        bidError: 'Invalid auction information.',
+        bidSuccess: '' 
+      }));
+      return;
+    }
 
     // Prevent actions if auction has ended
     if (timeLeft === 'Auction Ended') {
-      alert('Auction has already ended.');
+      setState((prev) => ({ 
+        ...prev, 
+        bidError: 'Auction has already ended.',
+        bidSuccess: '' 
+      }));
       return;
     }
 
     // Validate auction type
     if (auction.auctionType !== 'FORWARD') {
-      alert('Bidding is only available for forward auctions.');
+      setState((prev) => ({ 
+        ...prev, 
+        bidError: 'Bidding is only available for forward auctions.',
+        bidSuccess: '' 
+      }));
       return;
     }
 
     // Validate bid amount
-    if (bidAmount.trim() === '') {
-      setState((prev) => ({ ...prev, bidError: 'Please enter a bid amount.', bidSuccess: '' }));
+    if (!bidAmount || bidAmount.trim() === '') {
+      setState((prev) => ({ 
+        ...prev, 
+        bidError: 'Please enter a bid amount.',
+        bidSuccess: '' 
+      }));
       return;
     }
 
     const parsedBidAmount = parseFloat(bidAmount);
     if (isNaN(parsedBidAmount)) {
-      setState((prev) => ({ ...prev, bidError: 'Please enter a valid number.', bidSuccess: '' }));
+      setState((prev) => ({ 
+        ...prev, 
+        bidError: 'Please enter a valid number.',
+        bidSuccess: '' 
+      }));
       return;
     }
 
@@ -179,13 +208,18 @@ const ItemDetail = () => {
       return;
     }
 
-    // Prepare bid request payload (exclude bidderId)
+    // Prepare bid request payload
     const bidRequest = {
       bidAmount: parsedBidAmount,
+      bidderId: user.id // Include the bidderId from the authenticated user
     };
 
     try {
-      // **Ensure the URL points to AuctionService (e.g., port 8084)**
+      // Add debug logging
+      console.log('Placing bid for auction:', auction.id);
+      console.log('Bid request:', bidRequest);
+
+      // Send request to AuctionService
       const response = await authFetch(`http://localhost:8084/api/auctions/${auction.id}/bid`, {
         method: 'POST',
         headers: {
@@ -202,16 +236,25 @@ const ItemDetail = () => {
           bidError: '',
           bidAmount: '',
         }));
-        fetchItemDetails(); // Refresh item details to get updated bid price
+        // Refresh item details to get updated bid price
+        fetchItemDetails();
       } else {
-        const errorMsg = await response.text();
-        setState((prev) => ({ ...prev, bidError: `Failed to place bid: ${errorMsg}`, bidSuccess: '' }));
+        const errorData = await response.text();
+        setState((prev) => ({ 
+          ...prev, 
+          bidError: `Failed to place bid: ${errorData}`,
+          bidSuccess: '' 
+        }));
       }
     } catch (err) {
-      setState((prev) => ({ ...prev, bidError: 'An error occurred while placing your bid.', bidSuccess: '' }));
       console.error('Place Bid Error:', err);
+      setState((prev) => ({ 
+        ...prev, 
+        bidError: 'An error occurred while placing your bid.',
+        bidSuccess: '' 
+      }));
     }
-  }, [item, bidAmount, user, fetchItemDetails, timeLeft, logout]);
+  }, [item, bidAmount, user, timeLeft, fetchItemDetails, logout]);
 
   // Handle drag end for image reordering
   const onDragEnd = useCallback(
