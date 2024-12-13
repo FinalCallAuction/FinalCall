@@ -1,36 +1,25 @@
-// src/main/java/com/finalcall/auctionservice/entity/Bid.java
+// src/main/java/com/finalcall/auctionservice/dto/BidDTO.java
 
-package com.finalcall.auctionservice.entity;
+package com.finalcall.auctionservice.dto;
 
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "bids")
-public class Bid {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+public class BidDTO {
     private Long id;
-
     private Double amount;
-
-    private Long auctionId;
-
     private Long bidderId;
-
+    private String bidderUsername;
     private LocalDateTime timestamp;
 
-    // Constructors
-
-    public Bid() {
+    public BidDTO() {
     }
 
-    public Bid(Double amount, Long auctionId, Long bidderId) {
+    public BidDTO(Long id, Double amount, Long bidderId, String bidderUsername, LocalDateTime timestamp) {
+        this.id = id;
         this.amount = amount;
-        this.auctionId = auctionId;
         this.bidderId = bidderId;
-        this.timestamp = LocalDateTime.now();
+        this.bidderUsername = bidderUsername;
+        this.timestamp = timestamp;
     }
 
     // Getters and Setters
@@ -47,20 +36,20 @@ public class Bid {
         this.amount = amount;
     }
 
-    public Long getAuctionId() {
-        return auctionId;
-    }
-
-    public void setAuctionId(Long auctionId) {
-        this.auctionId = auctionId;
-    }
-
     public Long getBidderId() {
         return bidderId;
     }
 
     public void setBidderId(Long bidderId) {
         this.bidderId = bidderId;
+    }
+
+    public String getBidderUsername() {
+        return bidderUsername;
+    }
+
+    public void setBidderUsername(String bidderUsername) {
+        this.bidderUsername = bidderUsername;
     }
 
     public LocalDateTime getTimestamp() {

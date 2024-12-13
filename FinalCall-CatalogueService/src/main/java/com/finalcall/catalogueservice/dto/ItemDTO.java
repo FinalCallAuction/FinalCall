@@ -1,3 +1,5 @@
+// src/main/java/com/finalcall/catalogueservice/dto/ItemDTO.java
+
 package com.finalcall.catalogueservice.dto;
 
 import java.util.List;
@@ -32,84 +34,34 @@ public class ItemDTO {
     }
 
     // Getters and Setters
-    public Long getId() {
-        return id;
-    }
 
-    public String getRandomId() {
-        return randomId;
-    }
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public String getName() {
-        return name;
-    }
+    public String getRandomId() { return randomId; }
+    public void setRandomId(String randomId) { this.randomId = randomId; }
 
-    public String getDescription() {
-        return description;
-    }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
 
-    public String getKeywords() {
-        return keywords;
-    }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 
-    public List<String> getImageUrls() {
-        return imageUrls;
-    }
+    public String getKeywords() { return keywords; }
+    public void setKeywords(String keywords) { this.keywords = keywords; }
 
-    public Long getListedBy() {
-        return listedBy;
-    }
+    public List<String> getImageUrls() { return imageUrls; }
+    public void setImageUrls(List<String> imageUrls) { this.imageUrls = imageUrls; }
 
-    public String getListedByName() {
-        return listedByName;
-    }
+    public Long getListedBy() { return listedBy; }
+    public void setListedBy(Long listedBy) { this.listedBy = listedBy; }
 
-    public Double getStartingBidPrice() {
-        return startingBidPrice;
-    }
+    public String getListedByName() { return listedByName; }
+    public void setListedByName(String listedByName) { this.listedByName = listedByName; }
 
-    public AuctionDTO getAuction() {
-        return auction;
-    }
+    public Double getStartingBidPrice() { return startingBidPrice; }
+    public void setStartingBidPrice(Double startingBidPrice) { this.startingBidPrice = startingBidPrice; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public void setRandomId(String randomId) {
-        this.randomId = randomId;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public void setKeywords(String keywords) {
-        this.keywords = keywords;
-    }
-
-    public void setImageUrls(List<String> imageUrls) {
-        this.imageUrls = imageUrls;
-    }
-
-    public void setListedBy(Long listedBy) {
-        this.listedBy = listedBy;
-    }
-
-    public void setListedByName(String listedByName) {
-        this.listedByName = listedByName;
-    }
-
-    public void setStartingBidPrice(Double startingBidPrice) {
-        this.startingBidPrice = startingBidPrice;
-    }
-
-    public void setAuction(AuctionDTO auction) {
-        this.auction = auction;
-    }
-    
+    public AuctionDTO getAuction() { return auction; }
+    public void setAuction(AuctionDTO auction) { this.auction = auction; }
 }

@@ -31,13 +31,12 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/register").permitAll()
-                .requestMatchers("/api/user/**").authenticated() // Protect user endpoints
+                .requestMatchers("/api/user/**").authenticated()
                 .anyRequest().permitAll()
             )
-            // Add resource server configuration here
+            .formLogin(Customizer.withDefaults()) // Enable form login
             .oauth2ResourceServer(oauth2 -> oauth2.jwt());
 
         return http.build();
     }
-
 }

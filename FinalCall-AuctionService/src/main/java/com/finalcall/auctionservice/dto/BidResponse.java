@@ -1,14 +1,13 @@
+// src/main/java/com/finalcall/auctionservice/dto/BidResponse.java
+
 package com.finalcall.auctionservice.dto;
 
-/**
- * Data Transfer Object for bid response.
- */
 public class BidResponse {
     private String message;
     private Double currentBidPrice;
 
-    // Constructors
-    public BidResponse() {}
+    public BidResponse() {
+    }
 
     public BidResponse(String message, Double currentBidPrice) {
         this.message = message;
@@ -16,6 +15,7 @@ public class BidResponse {
     }
 
     // Getters and Setters
+
     public String getMessage() {
         return message;
     }

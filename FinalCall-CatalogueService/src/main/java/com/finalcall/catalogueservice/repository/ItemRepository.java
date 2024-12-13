@@ -12,5 +12,3 @@ public interface ItemRepository extends JpaRepository<Item, Long> {
     boolean existsByRandomId(String randomId);
     List<Item> findByListedBy(Long listedBy);
 }
-
-

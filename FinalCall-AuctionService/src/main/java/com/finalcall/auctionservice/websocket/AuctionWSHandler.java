@@ -1,12 +1,11 @@
+// src/main/java/com/finalcall/auctionservice/websocket/AuctionWSHandler.java
+
 package com.finalcall.auctionservice.websocket;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.finalcall.auctionservice.dto.AuctionDTO;
-import com.finalcall.auctionservice.entity.Auction;
-import com.finalcall.auctionservice.entity.Bid;
-import com.finalcall.auctionservice.event.AuctionUpdatedEvent;
 import com.finalcall.auctionservice.service.AuctionService;
-import com.finalcall.auctionservice.repository.BidRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.*;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
@@ -15,134 +14,111 @@ import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * WebSocket handler for auction updates.
- */
 @Component
 public class AuctionWSHandler extends TextWebSocketHandler {
 
-    private final BidRepository bidRepository;
-    private final AuctionService auctionService;
-    private final ObjectMapper objectMapper;
-    
-    // Thread-safe map to hold auctionId to sessions
-    private static Map<String, Set<WebSocketSession>> auctionSessions = new ConcurrentHashMap<>();
+    @Autowired
+    private AuctionService auctionService;
 
-    public AuctionWSHandler(BidRepository bidRepository,
-                            AuctionService auctionService,
-                            ObjectMapper objectMapper) {
-        this.bidRepository = bidRepository;
-        this.auctionService = auctionService;
-        this.objectMapper = objectMapper;
-    }
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    // Mapping from auctionId to a set of WebSocket sessions
+    private static Map<Long, Set<WebSocketSession>> auctionSessions = new ConcurrentHashMap<>();
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        String auctionId = getAuctionId(session);
-        if (auctionId.equals("0")) { // Invalid auctionId
+        Long auctionId = extractAuctionId(session);
+        if (auctionId == null || auctionId == 0L) {
             session.close(CloseStatus.BAD_DATA);
             return;
         }
         auctionSessions.computeIfAbsent(auctionId, k -> ConcurrentHashMap.newKeySet()).add(session);
-        // Optionally send initial data to the client
-        sendAuctionUpdate(session, Long.parseLong(auctionId));
+        // Optionally, send current auction state
+        sendAuctionUpdate(session, auctionId);
     }
 
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
-        String auctionId = getAuctionId(session);
-        if (auctionSessions.containsKey(auctionId)) {
+        Long auctionId = extractAuctionId(session);
+        if (auctionId != null && auctionId != 0L) {
             Set<WebSocketSession> sessions = auctionSessions.get(auctionId);
-            sessions.remove(session);
-            if (sessions.isEmpty()) {
-                auctionSessions.remove(auctionId);
-            }
-        }
-    }
-
-    /**
-     * Sends the current auction state to the specified WebSocket session.
-     *
-     * @param session   The WebSocket session.
-     * @param auctionId The ID of the auction.
-     * @throws IOException If sending the message fails.
-     */
-    private void sendAuctionUpdate(WebSocketSession session, Long auctionId) throws IOException {
-        try {
-            // Fetch the Auction entity
-            Optional<Auction> auctionOpt = auctionService.findByItemId(auctionId);
-            if (auctionOpt.isPresent()) {
-                Auction auction = auctionOpt.get();
-                // Map to AuctionDTO
-                AuctionDTO auctionDTO = auctionService.mapToDTO(auction);
-                // Fetch bidding history
-                List<Bid> bids = auctionService.getBidsForAuction(auctionId);
-                // Find highest bid
-                Bid highestBid = bids.stream().max(Comparator.comparing(Bid::getAmount)).orElse(null);
-                // Prepare response
-                Map<String, Object> response = new HashMap<>();
-                response.put("auction", auctionDTO);
-                response.put("highestBid", highestBid);
-
-                String responseStr = objectMapper.writeValueAsString(response);
-                session.sendMessage(new TextMessage(responseStr));
-            } else {
-                // Auction not found, send error
-                Map<String, String> error = new HashMap<>();
-                error.put("error", "Auction not found");
-                String errorStr = objectMapper.writeValueAsString(error);
-                session.sendMessage(new TextMessage(errorStr));
-            }
-        } catch (Exception e) {
-            // Log the exception
-            e.printStackTrace();
-            // Send error message to client
-            Map<String, String> error = new HashMap<>();
-            error.put("error", "Error fetching auction data");
-            String errorStr = objectMapper.writeValueAsString(error);
-            session.sendMessage(new TextMessage(errorStr));
-        }
-    }
-
-    /**
-     * Broadcasts the updated auction data to all connected clients for the specified auction.
-     *
-     * @param auctionId The ID of the auction.
-     * @param auctionDTO The updated auction data.
-     * @throws IOException If sending the message fails.
-     */
-    public void broadcast(String auctionId, AuctionDTO auctionDTO) throws IOException {
-        Set<WebSocketSession> sessions = auctionSessions.get(auctionId);
-        if (sessions != null && !sessions.isEmpty()) {
-            // Fetch the latest bidding history
-            List<Bid> bids = auctionService.getBidsForAuction(Long.parseLong(auctionId));
-            Bid highestBid = bids.stream().max(Comparator.comparing(Bid::getAmount)).orElse(null);
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("auction", auctionDTO);
-            response.put("highestBid", highestBid);
-
-            String responseStr = objectMapper.writeValueAsString(response);
-            TextMessage message = new TextMessage(responseStr);
-
-            for (WebSocketSession session : sessions) {
-                if (session.isOpen()) {
-                    session.sendMessage(message);
+            if (sessions != null) {
+                sessions.remove(session);
+                if (sessions.isEmpty()) {
+                    auctionSessions.remove(auctionId);
                 }
             }
         }
     }
 
     /**
-     * Extracts the auction ID from the WebSocket session's URI.
+     * Sends the current auction state to the specified session.
+     *
+     * @param session   The WebSocket session.
+     * @param auctionId The ID of the auction.
+     * @throws IOException If sending the message fails.
+     */
+    private void sendAuctionUpdate(WebSocketSession session, Long auctionId) throws IOException {
+        Optional<AuctionDTO> auctionDTOOpt = auctionService.findByItemId(auctionId)
+                .map(auctionService::mapToDTO);
+
+        if (auctionDTOOpt.isPresent()) {
+            AuctionDTO auctionDTO = auctionDTOOpt.get();
+            Map<String, Object> response = new HashMap<>();
+            response.put("auction", auctionDTO);
+            response.put("biddingHistory", auctionService.getBidsForAuction(auctionId));
+
+            String message = objectMapper.writeValueAsString(response);
+            session.sendMessage(new TextMessage(message));
+        } else {
+            session.sendMessage(new TextMessage("{\"error\":\"Auction not found.\"}"));
+        }
+    }
+
+    /**
+     * Broadcasts auction updates to all connected clients for a specific auction.
+     *
+     * @param auctionId  The ID of the auction.
+     * @param auctionDTO The updated auction data.
+     */
+    public void broadcastAuctionUpdate(Long auctionId, AuctionDTO auctionDTO) {
+        Set<WebSocketSession> sessions = auctionSessions.get(auctionId);
+        if (sessions != null && !sessions.isEmpty()) {
+            Map<String, Object> response = new HashMap<>();
+            response.put("auction", auctionDTO);
+            response.put("biddingHistory", auctionService.getBidsForAuction(auctionId));
+
+            try {
+                String message = objectMapper.writeValueAsString(response);
+                TextMessage textMessage = new TextMessage(message);
+                for (WebSocketSession session : sessions) {
+                    if (session.isOpen()) {
+                        session.sendMessage(textMessage);
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    /**
+     * Extracts the auction ID from the WebSocket session's URL.
      *
      * @param session The WebSocket session.
-     * @return The auction ID as a string, or "0" if not found.
+     * @return The auction ID as a Long, or 0L if not found.
      */
-    private String getAuctionId(WebSocketSession session) {
-        // Assuming the URI pattern is /auctions/{auctionId}/update
-        String path = session.getUri().getPath();
-        String[] segments = path.split("/");
-        return (segments.length >= 3) ? segments[2] : "0"; // Adjust index as needed
+    private Long extractAuctionId(WebSocketSession session) {
+        try {
+            String path = session.getUri().getPath(); // e.g., /ws/auctions/{auctionId}
+            String[] segments = path.split("/");
+            if (segments.length >= 4) {
+                return Long.parseLong(segments[3]);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return 0L;
     }
 }

@@ -1,3 +1,5 @@
+// src/main/java/com/finalcall/catalogueservice/client/AuthenticationServiceClient.java
+
 package com.finalcall.catalogueservice.client;
 
 import com.finalcall.catalogueservice.config.FeignConfig;

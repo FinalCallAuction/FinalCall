@@ -1,18 +1,24 @@
+// src/main/java/com/finalcall/auctionservice/service/AuthenticationServiceClient.java
+
 package com.finalcall.auctionservice.service;
 
-import com.finalcall.auctionservice.config.FeignConfig;
 import com.finalcall.auctionservice.dto.UserDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-@FeignClient(
-    name = "authentication-service",
-    url = "${authentication.service.url}",
-    configuration = FeignConfig.class
-)
+/**
+ * Feign client for interacting with the Authentication Service.
+ */
+@FeignClient(name = "authentication-service", url = "${authentication.service.url}")
 public interface AuthenticationServiceClient {
 
-    @GetMapping("/api/user/{id}")
-    UserDTO getUserById(@PathVariable("id") Long id);
+    /**
+     * Retrieves user details by user ID.
+     *
+     * @param userId The ID of the user.
+     * @return UserDTO containing user information.
+     */
+    @GetMapping("/api/users/{userId}")
+    UserDTO getUserById(@PathVariable("userId") Long userId);
 }

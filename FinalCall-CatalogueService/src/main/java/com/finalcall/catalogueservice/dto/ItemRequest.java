@@ -12,7 +12,7 @@ public class ItemRequest {
     private LocalDateTime auctionStartTime;
     private LocalDateTime auctionEndTime;
 
-    // Getters and setters
+    // Getters and Setters
 
     public String getName() {
         return name;
@@ -57,7 +57,7 @@ public class ItemRequest {
     public void setAuctionEndTime(LocalDateTime auctionEndTime) {
         this.auctionEndTime = auctionEndTime;
     }
-    
+
     public LocalDateTime getAuctionStartTime() {
         return auctionStartTime;
     }

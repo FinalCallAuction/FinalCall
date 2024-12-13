@@ -1,19 +1,22 @@
+// src/main/java/com/finalcall/catalogueservice/config/FeignConfig.java
+
 package com.finalcall.catalogueservice.config;
 
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import feign.RequestInterceptor;
 import feign.Response;
 import feign.codec.ErrorDecoder;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.client.*;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 
 @Configuration
 public class FeignConfig {
 
     @Bean
     public RequestInterceptor oauth2FeignRequestInterceptor(OAuth2AuthorizedClientManager authorizedClientManager) {
-        return new OAuth2FeignRequestInterceptor(authorizedClientManager);
+        return new OAuth2FeignRequestInterceptor(authorizedClientManager, "catalogue-service-client");
     }
 
     @Bean
@@ -24,7 +27,7 @@ public class FeignConfig {
     @Bean
     public OAuth2AuthorizedClientManager authorizedClientManager(
             ClientRegistrationRepository clientRegistrationRepository,
-            OAuth2AuthorizedClientService authorizedClientService) {
+            OAuth2AuthorizedClientRepository authorizedClientRepository) {
 
         OAuth2AuthorizedClientProvider authorizedClientProvider =
                 OAuth2AuthorizedClientProviderBuilder.builder()
@@ -34,7 +37,7 @@ public class FeignConfig {
         AuthorizedClientServiceOAuth2AuthorizedClientManager authorizedClientManager =
                 new AuthorizedClientServiceOAuth2AuthorizedClientManager(
                         clientRegistrationRepository,
-                        authorizedClientService
+                        new InMemoryOAuth2AuthorizedClientService(clientRegistrationRepository)
                 );
 
         authorizedClientManager.setAuthorizedClientProvider(authorizedClientProvider);

@@ -1,3 +1,5 @@
+// src/main/java/com/finalcall/catalogueservice/client/AuctionServiceClient.java
+
 package com.finalcall.catalogueservice.client;
 
 import com.finalcall.catalogueservice.config.FeignConfig;
@@ -18,7 +20,7 @@ public interface AuctionServiceClient {
      * @param auctionDTO Details of the auction to create.
      * @return ResponseEntity with the result of the creation.
      */
-    @PostMapping("/api/auctions/create")
+    @PostMapping("/api/auctions")
     ResponseEntity<?> createAuction(@RequestBody AuctionDTO auctionDTO);
 
     /**

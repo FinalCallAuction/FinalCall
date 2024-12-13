@@ -1,3 +1,5 @@
+// src/main/java/com/finalcall/auctionservice/dto/UserDTO.java
+
 package com.finalcall.auctionservice.dto;
 
 public class UserDTO {
@@ -12,7 +14,8 @@ public class UserDTO {
     private String postalCode;
     private boolean isSeller;
 
-    public UserDTO() {}
+    public UserDTO() {
+    }
 
     public UserDTO(Long id, String username, String email,
                   String firstName, String lastName, String streetAddress,
@@ -36,79 +39,79 @@ public class UserDTO {
         return id;
     }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
-
     public String getUsername() {
         return username;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public String getFirstName() {
+        return firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public String getStreetAddress() {
+        return streetAddress;
+    }
+
+    public String getProvince() {
+        return province;
+    }
+
+    public String getCountry() {
+        return country;
+    }
+
+    public String getPostalCode() {
+        return postalCode;
+    }
+
+    public boolean isSeller() {
+        return isSeller;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public void setUsername(String username) {
         this.username = username;
     }
 
-    public String getEmail() {
-        return email;
-    }
-    
     public void setEmail(String email) {
         this.email = email;
     }
 
-    public String getFirstName() {
-        return firstName;
-    }
-     
     public void setFirstName(String firstName) {
         this.firstName = firstName;
     }
-     
-    public String getLastName() {
-        return lastName;
-    }
-     
+
     public void setLastName(String lastName) {
         this.lastName = lastName;
     }
 
-    public String getStreetAddress() {
-        return streetAddress;
-    }
-     
     public void setStreetAddress(String streetAddress) {
         this.streetAddress = streetAddress;
     }
 
-    public String getProvince() {
-        return province;
-    }
-     
     public void setProvince(String province) {
         this.province = province;
     }
 
-    public String getCountry() {
-        return country;
-    }
-     
     public void setCountry(String country) {
         this.country = country;
     }
 
-    public String getPostalCode() {
-        return postalCode;
-    }
-     
     public void setPostalCode(String postalCode) {
         this.postalCode = postalCode;
     }
 
-    public boolean getIsSeller() {
-        return isSeller;
-    }
-     
-    public void setIsSeller(boolean isSeller) {
-        this.isSeller = isSeller;
+    public void setSeller(boolean seller) {
+        isSeller = seller;
     }
 }

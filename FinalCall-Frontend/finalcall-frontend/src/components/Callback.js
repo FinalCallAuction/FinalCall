@@ -49,11 +49,12 @@ const Callback = () => {
 
         // Decode JWT to extract user information
         const payload = JSON.parse(atob(accessToken.split('.')[1]));
-        const username = payload.sub || '';
+        const userId = payload.sub || ''; // Now 'sub' should be user ID
         const email = payload.email || '';
+        const isSeller = payload.isSeller || false;
 
-        // Fetch full user details by username
-        const userResp = await fetch(`http://localhost:8081/api/user/username/${encodeURIComponent(username)}`, {
+        // Fetch full user details by user ID
+        const userResp = await fetch(`http://localhost:8081/api/user/${encodeURIComponent(userId)}`, {
           headers: {
             'Authorization': `Bearer ${accessToken}`
           }

@@ -1,43 +1,41 @@
+// src/main/java/com/finalcall/auctionservice/controller/AuctionController.java
+
 package com.finalcall.auctionservice.controller;
 
-import com.finalcall.auctionservice.dto.AuctionDTO;
-import com.finalcall.auctionservice.dto.BidRequest;
-import com.finalcall.auctionservice.dto.BidResponse;
+import com.finalcall.auctionservice.dto.*;
 import com.finalcall.auctionservice.entity.Auction;
-import com.finalcall.auctionservice.entity.Bid;
+import com.finalcall.auctionservice.entity.AuctionType;
 import com.finalcall.auctionservice.service.AuctionService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.*;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auctions")
-@CrossOrigin(origins = "*") // Adjust origins as needed
+@CrossOrigin(origins = "*") // Adjust origins as necessary
 public class AuctionController {
 
     @Autowired
     private AuctionService auctionService;
 
     /**
-     * Create a new auction.
+     * Creates a new auction.
      *
      * @param auctionDTO Details of the auction.
      * @return ResponseEntity with the created auction or an error message.
      */
     @PostMapping("/create")
-    public ResponseEntity<?> createAuction(@RequestBody AuctionDTO auctionDTO) {
+    public ResponseEntity<?> createAuction(@Valid @RequestBody AuctionDTO auctionDTO) {
         try {
-            // Validate required fields
-            if (auctionDTO.getItemId() == null || auctionDTO.getAuctionType() == null ||
-                auctionDTO.getStartingBidPrice() == null || auctionDTO.getAuctionEndTime() == null ||
-                auctionDTO.getSellerId() == null || auctionDTO.getStartTime() == null) {
-                return ResponseEntity.badRequest().body("Missing required auction fields.");
-            }
+            // Basic validation is handled by @Valid and DTO constraints
 
             // Additional validation for DUTCH auctions
-            if (auctionDTO.getAuctionType() == com.finalcall.auctionservice.entity.AuctionType.DUTCH) {
+            if (auctionDTO.getAuctionType() == AuctionType.DUTCH) {
                 if (auctionDTO.getPriceDecrement() == null || auctionDTO.getMinimumPrice() == null) {
                     return ResponseEntity.badRequest().body("Price Decrement and Minimum Price must be provided for DUTCH auctions.");
                 }
@@ -59,20 +57,18 @@ public class AuctionController {
     }
 
     /**
-     * Place a bid on an auction.
+     * Places a bid on an auction.
      *
      * @param auctionId  The ID of the auction.
      * @param bidRequest The bid details.
      * @return ResponseEntity with BidResponse or error message.
      */
     @PostMapping("/{auctionId}/bid")
-    public ResponseEntity<?> placeBid(@PathVariable Long auctionId, @RequestBody BidRequest bidRequest) {
+    public ResponseEntity<?> placeBid(@PathVariable Long auctionId, @Valid @RequestBody BidRequest bidRequest) {
         try {
             BidResponse response = auctionService.placeBid(auctionId, bidRequest);
             return ResponseEntity.ok(response);
-        } catch (com.finalcall.auctionservice.exception.AuctionNotFoundException |
-                 com.finalcall.auctionservice.exception.AuctionNotActiveException |
-                 com.finalcall.auctionservice.exception.InvalidBidException e) {
+        } catch (NoSuchElementException | IllegalStateException | IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         } catch (Exception e) {
             // Log exception
@@ -82,7 +78,7 @@ public class AuctionController {
     }
 
     /**
-     * Get auction details by item ID.
+     * Retrieves auction details by item ID.
      *
      * @param itemId The ID of the item.
      * @return ResponseEntity containing AuctionDTO or error message.
@@ -90,11 +86,10 @@ public class AuctionController {
     @GetMapping("/item/{itemId}")
     public ResponseEntity<?> getAuctionByItemId(@PathVariable Long itemId) {
         try {
-            Optional<Auction> auctionOpt = auctionService.findByItemId(itemId);
-            if (auctionOpt.isPresent()) {
-                Auction auction = auctionOpt.get();
-                AuctionDTO auctionDTO = auctionService.mapToDTO(auction);
-                return ResponseEntity.ok(auctionDTO);
+            Optional<Auction> optionalAuction = auctionService.findByItemId(itemId);
+            if (optionalAuction.isPresent()) {
+                AuctionDTO dto = auctionService.mapToDTO(optionalAuction.get());
+                return ResponseEntity.ok(dto);
             } else {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Auction not found for the given item ID.");
             }
@@ -106,18 +101,15 @@ public class AuctionController {
     }
 
     /**
-     * Get all bids for an auction.
+     * Retrieves all bids for a specific auction.
      *
      * @param auctionId The ID of the auction.
-     * @return ResponseEntity containing list of bids or error message.
+     * @return ResponseEntity containing list of BidDTOs or error message.
      */
     @GetMapping("/{auctionId}/bids")
     public ResponseEntity<?> getBidsForAuction(@PathVariable Long auctionId) {
         try {
-            List<Bid> bids = auctionService.getBidsForAuction(auctionId);
-            // Transform Bid entities to a more detailed DTO if necessary
-            // For example, include bidder's username by integrating with UserService
-            // For simplicity, returning bids as is
+            List<BidDTO> bids = auctionService.getBidsForAuction(auctionId);
             return ResponseEntity.ok(bids);
         } catch (Exception e) {
             // Log exception
@@ -125,43 +117,4 @@ public class AuctionController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error fetching bids.");
         }
     }
-
-    /**
-     * Update images for an auction.
-     *
-     * @param auctionId The ID of the auction.
-     * @param imageUrls The updated list of image URLs.
-     * @return ResponseEntity with success message or error.
-     */
-    @PutMapping("/{auctionId}/update-images")
-    public ResponseEntity<?> updateAuctionImages(@PathVariable Long auctionId, @RequestBody List<String> imageUrls) {
-        try {
-            Optional<Auction> auctionOpt = auctionService.findByItemId(auctionId);
-            if (auctionOpt.isPresent()) {
-                Auction auction = auctionOpt.get();
-                // Assuming images are managed separately, possibly in CatalogueService
-                // If images are part of Auction entity, add an imageUrls field and update here
-                // Since current Auction entity does not have imageUrls, this endpoint might delegate to CatalogueService
-                // For demonstration, we'll assume images are not handled here
-                return ResponseEntity.ok("Images updated successfully.");
-            } else {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Auction not found for the given auction ID.");
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error updating auction images.");
-        }
-    }
-    
-    @GetMapping("/user/{userId}/bids")
-    public ResponseEntity<?> getItemsUserHasBidOn(@PathVariable Long userId) {
-        try {
-            List<Long> itemIds = auctionService.getItemsUserHasBidOn(userId);
-            return ResponseEntity.ok(itemIds);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error fetching user-bidded items.");
-        }
-    }
-
 }

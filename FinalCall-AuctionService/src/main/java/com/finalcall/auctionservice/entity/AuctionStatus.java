@@ -1,4 +1,4 @@
-// src/main/java/com/finalcall/catalogueservice/entity/AuctionStatus.java
+// src/main/java/com/finalcall/auctionservice/entity/AuctionStatus.java
 
 package com.finalcall.auctionservice.entity;
 

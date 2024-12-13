@@ -1,27 +1,34 @@
+// src/main/java/com/finalcall/auctionservice/event/AuctionUpdatedEvent.java
+
 package com.finalcall.auctionservice.event;
 
-import com.finalcall.auctionservice.dto.AuctionDTO;
+import com.finalcall.auctionservice.entity.Auction;
 import org.springframework.context.ApplicationEvent;
 
 /**
- * Event indicating that an auction has been updated.
+ * Custom event for auction updates.
  */
 public class AuctionUpdatedEvent extends ApplicationEvent {
-    
-    private final Long auctionId;
-    private final AuctionDTO auctionDTO;
 
-    public AuctionUpdatedEvent(Object source, Long auctionId, AuctionDTO auctionDTO) {
+    private final Auction auction;
+
+    /**
+     * Constructor for AuctionUpdatedEvent.
+     *
+     * @param source  The source of the event.
+     * @param auction The updated Auction entity.
+     */
+    public AuctionUpdatedEvent(Object source, Auction auction) {
         super(source);
-        this.auctionId = auctionId;
-        this.auctionDTO = auctionDTO;
+        this.auction = auction;
     }
 
-    public Long getAuctionId() {
-        return auctionId;
-    }
-
-    public AuctionDTO getAuctionDTO() {
-        return auctionDTO;
+    /**
+     * Retrieves the updated Auction entity.
+     *
+     * @return The Auction entity.
+     */
+    public Auction getAuction() {
+        return auction;
     }
 }

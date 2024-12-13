@@ -2,7 +2,6 @@ package com.finalcall.auctionservice.service;
 
 import com.finalcall.auctionservice.config.FeignConfig;
 import com.finalcall.auctionservice.dto.AuctionDTO;
-import com.finalcall.auctionservice.dto.ItemDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;

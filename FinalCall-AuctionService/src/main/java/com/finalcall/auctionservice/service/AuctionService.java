@@ -1,16 +1,10 @@
+// src/main/java/com/finalcall/auctionservice/service/AuctionService.java
+
 package com.finalcall.auctionservice.service;
 
-import com.finalcall.auctionservice.dto.AuctionDTO;
-import com.finalcall.auctionservice.dto.BidRequest;
-import com.finalcall.auctionservice.dto.BidResponse;
-import com.finalcall.auctionservice.entity.Auction;
-import com.finalcall.auctionservice.entity.AuctionStatus;
-import com.finalcall.auctionservice.entity.AuctionType;
-import com.finalcall.auctionservice.entity.Bid;
+import com.finalcall.auctionservice.dto.*;
+import com.finalcall.auctionservice.entity.*;
 import com.finalcall.auctionservice.event.AuctionUpdatedEvent;
-import com.finalcall.auctionservice.exception.AuctionNotActiveException;
-import com.finalcall.auctionservice.exception.AuctionNotFoundException;
-import com.finalcall.auctionservice.exception.InvalidBidException;
 import com.finalcall.auctionservice.repository.AuctionRepository;
 import com.finalcall.auctionservice.repository.BidRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,12 +13,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class AuctionService {
@@ -36,10 +26,13 @@ public class AuctionService {
     private BidRepository bidRepository;
 
     @Autowired
-    private ApplicationEventPublisher eventPublisher; // Inject ApplicationEventPublisher
+    private AuthenticationServiceClient authenticationServiceClient;
+
+    @Autowired
+    private ApplicationEventPublisher eventPublisher;
 
     /**
-     * Create a new auction.
+     * Creates a new auction based on the provided AuctionDTO.
      *
      * @param auctionDTO Details of the auction.
      * @return The created Auction entity.
@@ -58,9 +51,6 @@ public class AuctionService {
             auction.setCurrentBidPrice(auctionDTO.getStartingBidPrice());
 
             // Set price decrement and minimum price for Dutch auctions
-            if (auctionDTO.getPriceDecrement() == null || auctionDTO.getMinimumPrice() == null) {
-                throw new IllegalArgumentException("Price Decrement and Minimum Price must be provided for DUTCH auctions.");
-            }
             auction.setPriceDecrement(auctionDTO.getPriceDecrement());
             auction.setMinimumPrice(auctionDTO.getMinimumPrice());
         }
@@ -73,14 +63,14 @@ public class AuctionService {
         // Save auction
         Auction savedAuction = auctionRepository.save(auction);
 
-        // Publish AuctionUpdatedEvent
-        eventPublisher.publishEvent(new AuctionUpdatedEvent(this, savedAuction.getId(), mapToDTO(savedAuction)));
+        // Publish the event
+        eventPublisher.publishEvent(new AuctionUpdatedEvent(this, savedAuction));
 
         return savedAuction;
     }
 
     /**
-     * Find an auction by item ID.
+     * Finds an auction by its associated item ID.
      *
      * @param itemId The ID of the item.
      * @return Optional containing the Auction if found.
@@ -90,7 +80,7 @@ public class AuctionService {
     }
 
     /**
-     * Place a bid on an auction.
+     * Places a bid on an auction.
      *
      * @param auctionId  The ID of the auction.
      * @param bidRequest The bid details.
@@ -99,12 +89,11 @@ public class AuctionService {
     @Transactional
     public BidResponse placeBid(Long auctionId, BidRequest bidRequest) {
         Auction auction = auctionRepository.findById(auctionId)
-                .orElseThrow(() -> new AuctionNotFoundException("Auction not found with ID: " + auctionId));
+                .orElseThrow(() -> new NoSuchElementException("Auction not found with ID: " + auctionId));
 
-        // Recalculate auction status in case it's ended
-        auction.calculateStatus();
+        // Check if auction is active
         if (auction.getStatus() != AuctionStatus.ACTIVE) {
-            throw new AuctionNotActiveException("Auction is not active");
+            throw new IllegalStateException("Auction is not active.");
         }
 
         if (auction.getAuctionType() == AuctionType.FORWARD) {
@@ -112,22 +101,23 @@ public class AuctionService {
         } else if (auction.getAuctionType() == AuctionType.DUTCH) {
             return handleDutchAuctionBid(auction, bidRequest);
         } else {
-            throw new UnsupportedOperationException("Unsupported auction type");
+            throw new UnsupportedOperationException("Unsupported auction type.");
         }
     }
 
     /**
-     * Handle bid placement for forward auctions.
+     * Handles bid placement for forward auctions.
      *
-     * @param auction    The auction entity.
+     * @param auction    The Auction entity.
      * @param bidRequest The bid details.
      * @return BidResponse indicating success.
      */
     private BidResponse handleForwardAuctionBid(Auction auction, BidRequest bidRequest) {
         if (bidRequest.getBidAmount() == null || bidRequest.getBidAmount() <= auction.getCurrentBidPrice()) {
-            throw new InvalidBidException("Bid must be higher than current bid");
+            throw new IllegalArgumentException("Bid must be higher than the current bid.");
         }
 
+        // Update auction's current bid
         auction.setCurrentBidPrice(bidRequest.getBidAmount());
         auction.setCurrentBidderId(bidRequest.getBidderId());
         auctionRepository.save(auction);
@@ -136,21 +126,21 @@ public class AuctionService {
         Bid bid = new Bid(bidRequest.getBidAmount(), auction.getId(), bidRequest.getBidderId());
         bidRepository.save(bid);
 
-        // Publish AuctionUpdatedEvent
-        eventPublisher.publishEvent(new AuctionUpdatedEvent(this, auction.getId(), mapToDTO(auction)));
+        // Publish the event
+        eventPublisher.publishEvent(new AuctionUpdatedEvent(this, auction));
 
-        return new BidResponse("Bid placed successfully", auction.getCurrentBidPrice());
+        return new BidResponse("Bid placed successfully.", auction.getCurrentBidPrice());
     }
 
     /**
-     * Handle bid placement for Dutch auctions.
+     * Handles bid placement for dutch auctions (buy now).
      *
-     * @param auction    The auction entity.
+     * @param auction    The Auction entity.
      * @param bidRequest The bid details.
      * @return BidResponse indicating success.
      */
     private BidResponse handleDutchAuctionBid(Auction auction, BidRequest bidRequest) {
-        // In Dutch auctions, the first bidder wins at the current price
+        // In dutch auctions, first bid wins at current price
         auction.setStatus(AuctionStatus.ENDED);
         auction.setCurrentBidderId(bidRequest.getBidderId());
         auctionRepository.save(auction);
@@ -159,55 +149,68 @@ public class AuctionService {
         Bid bid = new Bid(auction.getCurrentBidPrice(), auction.getId(), bidRequest.getBidderId());
         bidRepository.save(bid);
 
-        // Publish AuctionUpdatedEvent
-        eventPublisher.publishEvent(new AuctionUpdatedEvent(this, auction.getId(), mapToDTO(auction)));
+        // Publish the event
+        eventPublisher.publishEvent(new AuctionUpdatedEvent(this, auction));
 
         return new BidResponse("Auction won at price: " + auction.getCurrentBidPrice(), auction.getCurrentBidPrice());
     }
 
     /**
-     * Scheduled task to decrease prices in active Dutch auctions.
-     * Runs every minute.
+     * Scheduled task to decrease prices in active dutch auctions every minute.
      */
     @Scheduled(fixedRate = 60000) // Every minute
     @Transactional
     public void decreaseDutchAuctionPrices() {
-        List<Auction> activeDutchAuctions = auctionRepository.findByAuctionTypeAndStatus(
-                AuctionType.DUTCH, AuctionStatus.ACTIVE);
+        List<Auction> activeDutchAuctions = auctionRepository.findByAuctionTypeAndStatus(AuctionType.DUTCH, AuctionStatus.ACTIVE);
 
         for (Auction auction : activeDutchAuctions) {
-            Double newPrice = auction.getCurrentBidPrice() - auction.getPriceDecrement();
+            double newPrice = auction.getCurrentBidPrice() - auction.getPriceDecrement();
+
             if (newPrice <= auction.getMinimumPrice()) {
                 auction.setCurrentBidPrice(auction.getMinimumPrice());
                 auction.setStatus(AuctionStatus.ENDED);
             } else {
                 auction.setCurrentBidPrice(newPrice);
             }
+
             auctionRepository.save(auction);
 
-            // Publish AuctionUpdatedEvent
-            eventPublisher.publishEvent(new AuctionUpdatedEvent(this, auction.getId(), mapToDTO(auction)));
+            // Publish the event
+            eventPublisher.publishEvent(new AuctionUpdatedEvent(this, auction));
         }
     }
 
     /**
-     * Retrieve all bids for a specific auction.
+     * Retrieves all bids for a specific auction and maps them to BidDTOs.
      *
      * @param auctionId The ID of the auction.
-     * @return List of bids.
+     * @return List of BidDTOs.
      */
-    public List<Bid> getBidsForAuction(Long auctionId) {
-        return bidRepository.findByAuctionIdOrderByTimestampDesc(auctionId);
+    public List<BidDTO> getBidsForAuction(Long auctionId) {
+        List<Bid> bids = bidRepository.findByAuctionIdOrderByTimestampDesc(auctionId);
+        return bids.stream()
+                .map(bid -> {
+                    UserDTO user = authenticationServiceClient.getUserById(bid.getBidderId());
+                    return new BidDTO(
+                            bid.getId(),
+                            bid.getAmount(),
+                            bid.getBidderId(),
+                            user != null ? user.getUsername() : "Unknown",
+                            bid.getTimestamp()
+                    );
+                })
+                .collect(Collectors.toList());
     }
 
     /**
-     * Map Auction entity to AuctionDTO.
+     * Maps Auction entity to AuctionDTO.
      *
      * @param auction The Auction entity.
      * @return AuctionDTO object.
      */
     public AuctionDTO mapToDTO(Auction auction) {
         AuctionDTO dto = new AuctionDTO();
+        dto.setId(auction.getId());
         dto.setItemId(auction.getItemId());
         dto.setAuctionType(auction.getAuctionType());
         dto.setStartingBidPrice(auction.getStartingBidPrice());
@@ -217,25 +220,9 @@ public class AuctionService {
         dto.setStartTime(auction.getStartTime());
         dto.setPriceDecrement(auction.getPriceDecrement());
         dto.setMinimumPrice(auction.getMinimumPrice());
+        dto.setCurrentBidderId(auction.getCurrentBidderId());
+        dto.setImageUrls(auction.getImageUrls());
+        dto.setStatus(auction.getStatus().name());
         return dto;
     }
-    
-    public List<Long> getItemsUserHasBidOn(Long userId) {
-        List<Bid> userBids = bidRepository.findAllByBidderId(userId);
-        // Extract the distinct auctionIds from these bids
-        Set<Long> auctionIds = new HashSet<>();
-        for (Bid b : userBids) {
-            auctionIds.add(b.getAuctionId());
-        }
-
-        // For each auctionId, get the auction and itemId
-        List<Long> itemIds = new ArrayList<>();
-        for (Long auctionId : auctionIds) {
-            Optional<Auction> auctionOpt = auctionRepository.findById(auctionId);
-            auctionOpt.ifPresent(a -> itemIds.add(a.getItemId()));
-        }
-
-        return itemIds;
-    }
-
 }
