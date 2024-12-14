@@ -11,6 +11,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 public class SecurityConfig {
@@ -31,10 +32,12 @@ public class SecurityConfig {
             .cors(Customizer.withDefaults())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/register").permitAll()
-                .requestMatchers("/api/user/**").authenticated()
-                .anyRequest().permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/users/**").permitAll()  // Allow public access to user profiles
+                .requestMatchers(HttpMethod.PUT, "/api/users/**").authenticated()  // Require auth for updates
+                .requestMatchers("/oauth2/**").permitAll()
+                .anyRequest().authenticated()
             )
-            .formLogin(Customizer.withDefaults()) // Enable form login
+            .formLogin(Customizer.withDefaults())
             .oauth2ResourceServer(oauth2 -> oauth2.jwt());
 
         return http.build();

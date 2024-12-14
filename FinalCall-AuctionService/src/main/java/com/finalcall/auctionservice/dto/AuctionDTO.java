@@ -20,6 +20,7 @@ public class AuctionDTO {
     private Long currentBidderId;
     private List<String> imageUrls;
     private String status;
+    private ItemDTO item;
 
     // Constructors
 
@@ -130,5 +131,13 @@ public class AuctionDTO {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+    
+    public void setItem(ItemDTO item) {
+        this.item = item;
+    }
+
+    public ItemDTO getItem() {
+        return item;
     }
 }

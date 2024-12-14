@@ -118,4 +118,14 @@ public class AuctionController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error fetching bids.");
         }
     }
+    
+    @GetMapping("/user/{userId}/bids")
+    public ResponseEntity<?> getUserBids(@PathVariable Long userId) {
+        try {
+            List<BidDTO> userBids = auctionService.getUserBids(userId);
+            return ResponseEntity.ok(userBids);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error fetching user bids");
+        }
+    }
 }

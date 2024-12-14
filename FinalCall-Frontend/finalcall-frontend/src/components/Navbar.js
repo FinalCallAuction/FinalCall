@@ -1,4 +1,3 @@
-// src/components/Navbar.js
 import React, { useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
@@ -22,10 +21,14 @@ const Navbar = () => {
       <div className="flex items-center space-x-4">
         {user && (
           <>
-            <Link to="/create-item" className="hover:underline">
-              List Item
-            </Link>
-          </>
+		  {/* Add this new link */}
+		            <Link to="/my-bids" className="hover:underline">
+		              My Bids
+		            </Link>
+		            <Link to="/create-item" className="hover:underline">
+		              List Item
+		            </Link>
+		          </>
         )}
         {!user ? (
           <>
@@ -38,7 +41,12 @@ const Navbar = () => {
           </>
         ) : (
           <>
-            <span>Hello, {displayName}</span>
+		  <Link 
+		    to={`/profile/${user.id}`} 
+		    className="hover:underline cursor-pointer"
+		  >
+		    Hello, {displayName}
+		  </Link>
             <button
               onClick={handleLogout}
               className="bg-red-500 px-3 py-1 rounded hover:bg-red-600"

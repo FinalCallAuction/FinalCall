@@ -4,8 +4,99 @@ import { authFetch } from '../utils/authFetch';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { AuthContext } from '../context/AuthContext';
 import { Carousel } from 'react-responsive-carousel';
+import { Link } from 'react-router-dom';
 import 'react-responsive-carousel/lib/styles/carousel.min.css';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+
+const BiddingSection = ({ auction, user, timeLeft, onBidSubmit }) => {
+  const [bidAmount, setBidAmount] = useState('');
+  const [bidError, setBidError] = useState('');
+  const [bidSuccess, setBidSuccess] = useState('');
+
+  const handleBid = async (amount) => {
+    setBidError('');
+    setBidSuccess('');
+
+    if (!user) {
+      setBidError('Please log in to place a bid');
+      return;
+    }
+
+    if (timeLeft === 'Auction Ended') {
+      setBidError('This auction has ended');
+      return;
+    }
+
+    const bidAmount = amount || parseFloat(amount);
+    if (isNaN(bidAmount)) {
+      setBidError('Please enter a valid amount');
+      return;
+    }
+
+    try {
+      await onBidSubmit(bidAmount);
+      setBidSuccess('Bid placed successfully!');
+      setBidAmount('');
+    } catch (error) {
+      setBidError(error.message);
+    }
+  };
+
+  if (auction.auctionType === 'DUTCH') {
+    return (
+      <div className="mt-4 p-4 border rounded bg-gray-50">
+        <h3 className="text-xl font-semibold mb-2">Dutch Auction</h3>
+        <p className="mb-2">Current Price: ${auction.currentBidPrice.toFixed(2)}</p>
+        {auction.priceDecrement && (
+          <p className="mb-2">Price decreases by ${auction.priceDecrement.toFixed(2)} every minute</p>
+        )}
+        {auction.minimumPrice && (
+          <p className="mb-2">Minimum Price: ${auction.minimumPrice.toFixed(2)}</p>
+        )}
+        <button
+          onClick={() => handleBid(auction.currentBidPrice)}
+          className="w-full px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-400"
+          disabled={timeLeft === 'Auction Ended'}
+        >
+          Buy Now at ${auction.currentBidPrice.toFixed(2)}
+        </button>
+      </div>
+    );
+  }
+
+  // Forward Auction Interface
+  return (
+    <div className="mt-4 p-4 border rounded bg-gray-50">
+      <h3 className="text-xl font-semibold mb-2">Place a Bid</h3>
+      <input
+        type="number"
+        placeholder={`Enter bid higher than $${auction.currentBidPrice.toFixed(2)}`}
+        value={bidAmount}
+        onChange={(e) => setBidAmount(e.target.value)}
+        className="w-full px-3 py-2 border rounded mb-2"
+        min={auction.currentBidPrice + 0.01}
+        step="0.01"
+      />
+      <button
+        onClick={() => handleBid(bidAmount)}
+        className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
+        disabled={timeLeft === 'Auction Ended'}
+      >
+        Place Bid
+      </button>
+      {bidError && (
+        <div className="mt-2 p-2 bg-red-100 border border-red-400 text-red-700 rounded">
+          {bidError}
+        </div>
+      )}
+      {bidSuccess && (
+        <div className="mt-2 p-2 bg-green-100 border border-green-400 text-green-700 rounded">
+          {bidSuccess}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const ItemDetail = () => {
   const { id } = useParams(); // Item ID from the URL
@@ -87,7 +178,8 @@ const ItemDetail = () => {
   // Fetch bidding history
   const fetchBiddingHistory = useCallback(async (auctionId) => {
     try {
-      const response = await authFetch(`http://localhost:8082/api/auctions/${auctionId}/bids`, {
+      // Change the URL from 8082 (CatalogueService) to 8084 (AuctionService)
+      const response = await authFetch(`http://localhost:8084/api/auctions/${auctionId}/bids`, {
         method: 'GET',
       }, logout);
 
@@ -98,15 +190,15 @@ const ItemDetail = () => {
           biddingHistory: data,
         }));
       } else {
-        const errorMsg = await response.text();
-        setState((prev) => ({ ...prev, error: errorMsg }));
+        const errorData = await response.text();
+        setState((prev) => ({ ...prev, error: errorData }));
       }
     } catch (err) {
       setState((prev) => ({ ...prev, error: 'Failed to fetch bidding history.' }));
       console.error('Fetch Bidding History Error:', err);
     }
   }, [logout]);
-
+  
   // Fetch item details and bidding history on component mount
   useEffect(() => {
     fetchItemDetails();
@@ -137,89 +229,42 @@ const ItemDetail = () => {
   }, [item?.auction?.auctionEndTime, updateTimeLeft]);
 
   // Updated handlePlaceBid function with proper auction ID handling
-  const handlePlaceBid = useCallback(async () => {
+  const handlePlaceBid = useCallback(async (amount) => {
     const auction = item?.auction;
     if (!auction) {
-      setState((prev) => ({ 
-        ...prev, 
-        bidError: 'Auction information not found.',
-        bidSuccess: '' 
-      }));
-      return;
+      throw new Error('Auction information not found.');
     }
 
-    // Add check for auction ID
     if (!auction.id) {
-      console.error('Auction ID is missing:', auction);
-      setState((prev) => ({ 
-        ...prev, 
-        bidError: 'Invalid auction information.',
-        bidSuccess: '' 
-      }));
-      return;
+      throw new Error('Invalid auction information.');
     }
 
-    // Prevent actions if auction has ended
     if (timeLeft === 'Auction Ended') {
-      setState((prev) => ({ 
-        ...prev, 
-        bidError: 'Auction has already ended.',
-        bidSuccess: '' 
-      }));
-      return;
+      throw new Error('Auction has ended.');
     }
 
-    // Validate auction type
-    if (auction.auctionType !== 'FORWARD') {
-      setState((prev) => ({ 
-        ...prev, 
-        bidError: 'Bidding is only available for forward auctions.',
-        bidSuccess: '' 
-      }));
-      return;
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount)) {
+      throw new Error('Please enter a valid number.');
     }
 
-    // Validate bid amount
-    if (!bidAmount || bidAmount.trim() === '') {
-      setState((prev) => ({ 
-        ...prev, 
-        bidError: 'Please enter a bid amount.',
-        bidSuccess: '' 
-      }));
-      return;
+    // Validate bid amount based on auction type
+    if (auction.auctionType === 'FORWARD') {
+      if (parsedAmount <= auction.currentBidPrice) {
+        throw new Error(`Bid must be higher than current bid ($${auction.currentBidPrice.toFixed(2)}).`);
+      }
+    } else if (auction.auctionType === 'DUTCH') {
+      if (parsedAmount !== auction.currentBidPrice) {
+        throw new Error(`Dutch auction requires exact current price ($${auction.currentBidPrice.toFixed(2)}).`);
+      }
     }
 
-    const parsedBidAmount = parseFloat(bidAmount);
-    if (isNaN(parsedBidAmount)) {
-      setState((prev) => ({ 
-        ...prev, 
-        bidError: 'Please enter a valid number.',
-        bidSuccess: '' 
-      }));
-      return;
-    }
-
-    if (parsedBidAmount <= auction.currentBidPrice) {
-      setState((prev) => ({
-        ...prev,
-        bidError: `Please enter a bid higher than the current bid ($${auction.currentBidPrice.toFixed(2)}).`,
-        bidSuccess: '',
-      }));
-      return;
-    }
-
-    // Prepare bid request payload
     const bidRequest = {
-      bidAmount: parsedBidAmount,
-      bidderId: user.id // Include the bidderId from the authenticated user
+      bidAmount: parsedAmount,
+      bidderId: user.id
     };
 
     try {
-      // Add debug logging
-      console.log('Placing bid for auction:', auction.id);
-      console.log('Bid request:', bidRequest);
-
-      // Send request to AuctionService
       const response = await authFetch(`http://localhost:8084/api/auctions/${auction.id}/bid`, {
         method: 'POST',
         headers: {
@@ -228,33 +273,17 @@ const ItemDetail = () => {
         body: JSON.stringify(bidRequest),
       }, logout);
 
-      if (response.ok) {
-        const data = await response.json();
-        setState((prev) => ({
-          ...prev,
-          bidSuccess: 'Bid placed successfully!',
-          bidError: '',
-          bidAmount: '',
-        }));
-        // Refresh item details to get updated bid price
-        fetchItemDetails();
-      } else {
+      if (!response.ok) {
         const errorData = await response.text();
-        setState((prev) => ({ 
-          ...prev, 
-          bidError: `Failed to place bid: ${errorData}`,
-          bidSuccess: '' 
-        }));
+        throw new Error(errorData);
       }
+
+      await fetchItemDetails();
     } catch (err) {
       console.error('Place Bid Error:', err);
-      setState((prev) => ({ 
-        ...prev, 
-        bidError: 'An error occurred while placing your bid.',
-        bidSuccess: '' 
-      }));
+      throw new Error(err.message || 'An error occurred while placing your bid.');
     }
-  }, [item, bidAmount, user, timeLeft, fetchItemDetails, logout]);
+  }, [item, user, timeLeft, fetchItemDetails, logout]);
 
   // Handle drag end for image reordering
   const onDragEnd = useCallback(
@@ -499,9 +528,15 @@ const ItemDetail = () => {
             <strong>Current Bid:</strong> $
             {auction.currentBidPrice !== undefined ? auction.currentBidPrice.toFixed(2) : 'N/A'}
           </p>
-          <p className="mb-2">
-            <strong>Listed By:</strong> {item.listedByName}
-          </p>
+		  <p className="mb-2">
+		    <strong>Listed By:</strong>{" "}
+		    <Link 
+		      to={`/profile/${item.listedBy}`} 
+		      className="text-blue-500 hover:underline"
+		    >
+		      {item.listedByName}
+		    </Link>
+		  </p>
           <p className="mb-2">
             <strong>Time Left:</strong> {timeLeft}
           </p>
@@ -519,31 +554,14 @@ const ItemDetail = () => {
           )}
 
           {/* Bidding Section */}
-          {user && !isOwner && auction.auctionType === 'FORWARD' && (
-            <div className="mt-4">
-              <h3 className="text-xl font-semibold mb-2">Place a Bid</h3>
-              <input
-                type="number"
-                placeholder={`Enter a bid higher than $${auction.currentBidPrice.toFixed(2)}`}
-                value={bidAmount}
-                onChange={(e) => setState((prev) => ({ ...prev, bidAmount: e.target.value, bidError: '', bidSuccess: '' }))}
-                className="w-full px-3 py-2 border rounded mb-2"
-                min={auction.currentBidPrice + 0.01} // Minimum bid amount
-                step="0.01"
-              />
-              <button
-                onClick={handlePlaceBid}
-                className={`px-4 py-2 rounded ${
-                  timeLeft === 'Auction Ended'
-                    ? 'bg-gray-500 cursor-not-allowed'
-                    : 'bg-green-500 text-white hover:bg-green-600'
-                }`}
-                disabled={timeLeft === 'Auction Ended'}
-              >
-                Place Bid
-              </button>
-            </div>
-          )}
+		  {user && !isOwner && (
+		    <BiddingSection
+		      auction={auction}
+		      user={user}
+		      timeLeft={timeLeft}
+		      onBidSubmit={handlePlaceBid}
+		    />
+		  )}
 
           {/* Edit Listing Button - Visible Only to Lister */}
           {isOwner && (

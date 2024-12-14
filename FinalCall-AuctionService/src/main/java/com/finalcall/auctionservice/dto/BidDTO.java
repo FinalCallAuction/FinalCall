@@ -1,5 +1,3 @@
-// src/main/java/com/finalcall/auctionservice/dto/BidDTO.java
-
 package com.finalcall.auctionservice.dto;
 
 import java.time.LocalDateTime;
@@ -10,6 +8,7 @@ public class BidDTO {
     private Long bidderId;
     private String bidderUsername;
     private LocalDateTime timestamp;
+    private AuctionDTO auction; // Add this field
 
     public BidDTO() {
     }
@@ -22,8 +21,7 @@ public class BidDTO {
         this.timestamp = timestamp;
     }
 
-    // Getters and Setters
-
+    // Existing getters remain the same
     public Long getId() {
         return id;
     }
@@ -32,31 +30,45 @@ public class BidDTO {
         return amount;
     }
 
-    public void setAmount(Double amount) {
-        this.amount = amount;
-    }
-
     public Long getBidderId() {
         return bidderId;
-    }
-
-    public void setBidderId(Long bidderId) {
-        this.bidderId = bidderId;
     }
 
     public String getBidderUsername() {
         return bidderUsername;
     }
 
-    public void setBidderUsername(String bidderUsername) {
-        this.bidderUsername = bidderUsername;
-    }
-
     public LocalDateTime getTimestamp() {
         return timestamp;
     }
 
+    // Add setters for all fields
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public void setAmount(Double amount) {
+        this.amount = amount;
+    }
+
+    public void setBidderId(Long bidderId) {
+        this.bidderId = bidderId;
+    }
+
+    public void setBidderUsername(String bidderUsername) {
+        this.bidderUsername = bidderUsername;
+    }
+
     public void setTimestamp(LocalDateTime timestamp) {
         this.timestamp = timestamp;
+    }
+
+    // Setter and getter for auction
+    public void setAuction(AuctionDTO auction) {
+        this.auction = auction;
+    }
+
+    public AuctionDTO getAuction() {
+        return auction;
     }
 }

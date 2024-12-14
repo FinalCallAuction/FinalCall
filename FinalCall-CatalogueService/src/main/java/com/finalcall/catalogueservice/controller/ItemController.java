@@ -106,6 +106,18 @@ public class ItemController {
      *
      * @return ResponseEntity with list of items or error message.
      */
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<?> getUserItems(@PathVariable Long userId) {
+        try {
+            List<ItemDTO> userItems = itemService.getUserItemsWithDetails(userId);
+            return ResponseEntity.ok(userItems);
+        } catch (Exception e) {
+            logger.error("Error fetching user items", e);
+            return ResponseEntity.status(500).body("Error fetching user items.");
+        }
+    }
+
+    // Update the service method to not require authentication
     @GetMapping
     public ResponseEntity<?> getAllItems() {
         try {
@@ -114,31 +126,6 @@ public class ItemController {
         } catch (Exception e) {
             logger.error("Error fetching all items", e);
             return ResponseEntity.status(500).body("Error fetching items.");
-        }
-    }
-
-    /**
-     * Retrieve all items listed by the authenticated user.
-     *
-     * @param principal JWT principal containing user details.
-     * @return ResponseEntity with list of items or error message.
-     */
-    @GetMapping("/user")
-    public ResponseEntity<?> getUserItems(@AuthenticationPrincipal Jwt principal) {
-        Long userId;
-        try {
-            userId = Long.valueOf(principal.getSubject());
-        } catch (NumberFormatException e) {
-            logger.error("Invalid user ID in JWT: {}", principal.getSubject());
-            return ResponseEntity.status(401).body("Invalid user ID.");
-        }
-
-        try {
-            List<ItemDTO> userItems = itemService.getUserItemsWithDetails(userId);
-            return ResponseEntity.ok(userItems);
-        } catch (Exception e) {
-            logger.error("Error fetching user items", e);
-            return ResponseEntity.status(500).body("Error fetching user items.");
         }
     }
 }

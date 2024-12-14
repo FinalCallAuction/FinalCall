@@ -22,17 +22,21 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+            .csrf(csrf -> csrf.disable())
             .cors(Customizer.withDefaults())
-            .csrf(csrf -> csrf.disable()) // Disable CSRF since we're using tokens
             .authorizeHttpRequests(auth -> auth
-                // Permit all GET requests to /api/items/**
+                // Public read endpoints
                 .requestMatchers(HttpMethod.GET, "/api/items/**").permitAll()
-                // Require authentication for all other HTTP methods on /api/items/**
-                .requestMatchers("/api/items/**").authenticated()
-                // Allow any other requests without authentication
+                .requestMatchers(HttpMethod.GET, "/api/items/user/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/itemimages/**").permitAll()
+                // Protected write endpoints
+                .requestMatchers(HttpMethod.POST, "/api/items/**").authenticated()
+                .requestMatchers(HttpMethod.PUT, "/api/items/**").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/items/**").authenticated()
+                // Any other requests
                 .anyRequest().permitAll()
             )
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt()); // OAuth2 Resource Server for JWT validation
+            .oauth2ResourceServer(oauth2 -> oauth2.jwt()); // Keep JWT configuration
 
         return http.build();
     }

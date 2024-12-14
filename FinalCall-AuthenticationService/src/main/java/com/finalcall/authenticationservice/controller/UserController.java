@@ -14,7 +14,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/user")
+@RequestMapping("/api")  // Changed from "/api/user" to "/api"
 @CrossOrigin(origins = "http://localhost:3000")
 public class UserController {
 
@@ -63,27 +63,27 @@ public class UserController {
      * @param userId The user ID.
      * @return User details.
      */
-    @GetMapping("/{id}")
+    @GetMapping("/users/{id}")
     public ResponseEntity<?> getUserById(@PathVariable("id") Long userId) {
         Optional<User> userOpt = userService.findById(userId);
         if (userOpt.isPresent()) {
             User user = userOpt.get();
+            // Only return public information for non-authenticated requests
             UserDTO userDTO = new UserDTO(
                 user.getId(),
                 user.getUsername(),
-                user.getEmail(),
+                null,  // Don't include email
                 user.getFirstName(),
                 user.getLastName(),
-                user.getStreetAddress(),
-                user.getProvince(),
+                null,  // Don't include private address details
+                null,
                 user.getCountry(),
-                user.getPostalCode(),
+                null,
                 user.getIsSeller()
             );
             return ResponseEntity.ok(userDTO);
-        } else {
-            return ResponseEntity.status(404).body("User not found");
         }
+        return ResponseEntity.notFound().build();
     }
 
     /**
@@ -149,28 +149,5 @@ public class UserController {
         }
     }
     
-    @GetMapping("/username/{username}")
-    public ResponseEntity<?> getUserByUsername(@PathVariable("username") String username) {
-        Optional<User> userOpt = userService.findByUsername(username);
-        if (userOpt.isPresent()) {
-            User user = userOpt.get();
-            UserDTO userDTO = new UserDTO(
-                user.getId(),
-                user.getUsername(),
-                user.getEmail(),
-                user.getFirstName(),
-                user.getLastName(),
-                user.getStreetAddress(),
-                user.getProvince(),
-                user.getCountry(),
-                user.getPostalCode(),
-                user.getIsSeller()
-            );
-            return ResponseEntity.ok(userDTO);
-        } else {
-            return ResponseEntity.status(404).body("User not found");
-        }
-    }
-
-
+  
 }

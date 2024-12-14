@@ -1,26 +1,39 @@
-// src/components/Profile.js
 import React, { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { authFetch } from '../utils/authFetch';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
+import CountdownTimer from './CountdownTimer';
 
 const Profile = () => {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
+  const { userId } = useParams();
   const [profile, setProfile] = useState(null);
-  const [listedItems, setListedItems] = useState([]);
-  const [biddedItems, setBiddedItems] = useState([]);
+  const [items, setItems] = useState({ active: [], expired: [] });
+  const [bidCounts, setBidCounts] = useState({});
   const [error, setError] = useState('');
+  
+  const isOwnProfile = user && userId === user.id.toString();
+
+  useEffect(() => {
+    if (!user && !userId) {
+      navigate('/login');
+      return;
+    }
+    
+    fetchProfile();
+    fetchUserItems();
+  }, [user, userId]);
 
   const fetchProfile = async () => {
     try {
-      // We already have user details in user object
-      // If you want to re-fetch from AuthenticationService, you can:
-      const response = await authFetch(`http://localhost:8081/api/user/${user.id}`, {
+      if (!userId) return;
+
+      const response = await authFetch(`http://localhost:8081/api/users/${userId}`, {
         method: 'GET',
       }, logout);
 
-      if (response && response.ok) {
+      if (response.ok) {
         const data = await response.json();
         setProfile(data);
       } else {
@@ -33,71 +46,62 @@ const Profile = () => {
     }
   };
 
-  const fetchListedItems = async () => {
+  const fetchUserItems = async () => {
     try {
-      const response = await authFetch('http://localhost:8082/api/items/user', {
+      const response = await authFetch(`http://localhost:8082/api/items`, {
         method: 'GET',
       }, logout);
 
       if (response.ok) {
-        const data = await response.json();
-        setListedItems(data);
+        const allItems = await response.json();
+        const userItems = allItems.filter(item => item.listedBy.toString() === userId);
+        
+        const now = new Date();
+        
+        const active = userItems.filter(item => 
+          item.auction &&
+          new Date(item.auction.auctionEndTime) > now && 
+          item.auction.status !== 'ENDED'
+        );
+        
+        const expired = userItems.filter(item => 
+          item.auction && (
+            new Date(item.auction.auctionEndTime) <= now || 
+            item.auction.status === 'ENDED'
+          )
+        );
+
+        setItems({ active, expired });
+
+        // Fetch bid counts for each auction
+        const bidCountPromises = userItems.map(item => 
+          fetch(`http://localhost:8084/api/auctions/${item.auction.id}/bids`)
+        );
+
+        const bidCountResponses = await Promise.all(bidCountPromises);
+        const bidCountData = await Promise.all(
+          bidCountResponses.map(response => response.json())
+        );
+
+        const countMap = {};
+        bidCountData.forEach((bids, index) => {
+          countMap[userItems[index].id] = bids.length;
+        });
+
+        setBidCounts(countMap);
       } else {
-        const errorMsg = await response.text();
-        console.error('Error fetching user items:', errorMsg);
+        console.error('Error fetching user items:', await response.text());
       }
     } catch (err) {
       console.error('Error fetching user items:', err);
     }
   };
 
-  const fetchBiddedItems = async () => {
-    try {
-      const response = await authFetch(`http://localhost:8084/api/auctions/user/${user.id}/bids`, {
-        method: 'GET',
-      }, logout);
-
-      if (response.ok) {
-        const itemIds = await response.json(); // Array of itemIds
-        // Fetch details for each item
-        const itemsDetails = [];
-        for (const itemId of itemIds) {
-          const itemResp = await authFetch(`http://localhost:8082/api/items/${itemId}`, {method: 'GET'}, logout);
-          if (itemResp.ok) {
-            const itemData = await itemResp.json();
-            itemsDetails.push(itemData);
-          }
-        }
-        setBiddedItems(itemsDetails);
-      } else {
-        const errorMsg = await response.text();
-        console.error('Error fetching bidded items:', errorMsg);
-      }
-    } catch (err) {
-      console.error('Error fetching bidded items:', err);
-    }
-  };
-
-  useEffect(() => {
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-
-    fetchProfile();
-    fetchListedItems();
-    fetchBiddedItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
-
   if (error) {
     return (
       <div className="container mx-auto px-4 py-6">
         <h1 className="text-3xl font-bold mb-4">Profile</h1>
-        <div
-          className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative"
-          role="alert"
-        >
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
           {error}
         </div>
       </div>
@@ -113,73 +117,113 @@ const Profile = () => {
     );
   }
 
+  const renderItemSection = (sectionTitle, itemList, isActive = true) => (
+    <>
+      <h2 className="text-2xl font-semibold mb-4">{sectionTitle}</h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        {itemList.length > 0 ? (
+          itemList.map((item) => (
+            <div 
+              key={item.id} 
+              className={`border p-4 rounded shadow ${!isActive ? 'opacity-75' : ''}`}
+            >
+              <h3 className="text-xl font-semibold mb-1">{item.name}</h3>
+              {item.imageUrls && item.imageUrls.length > 0 ? (
+                <img
+                  src={`http://localhost:8082${item.imageUrls[0]}`}
+                  alt={item.name}
+                  className="w-full h-48 object-cover mb-2 rounded"
+                  loading="lazy"
+                />
+              ) : (
+                <img
+                  src="https://placehold.co/600x400"
+                  alt="Placeholder"
+                  className="w-full h-48 object-cover mb-2 rounded"
+                  loading="lazy"
+                />
+              )}
+
+              {item.auction && item.auction.auctionEndTime && (
+                <CountdownTimer endTime={item.auction.auctionEndTime} />
+              )}
+
+              {item.auction && (
+                <div className="mt-2 space-y-1">
+                  <p>
+                    <strong>Starting Bid:</strong> ${item.auction.startingBidPrice?.toFixed(2) || 'N/A'}
+                  </p>
+                  <p>
+                    <strong>Current Bid:</strong> ${item.auction.currentBidPrice?.toFixed(2) || 'N/A'}
+                  </p>
+                  <p>
+                    <strong>Bids:</strong> {bidCounts[item.id] || 0}
+                  </p>
+                </div>
+              )}
+
+              <Link
+                to={`/items/${item.id}`}
+                className="inline-block mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                View Details
+              </Link>
+            </div>
+          ))
+        ) : (
+          <p className="col-span-3">No {sectionTitle.toLowerCase()} found.</p>
+        )}
+      </div>
+    </>
+  );
+
   return (
     <div className="container mx-auto px-4 py-6">
-      <h1 className="text-3xl font-bold mb-4">Profile</h1>
+      <h1 className="text-3xl font-bold mb-4">
+        {isOwnProfile ? 'My Profile' : `${profile.username}'s Profile`}
+      </h1>
+
       <div className="bg-white p-6 rounded shadow-md mb-6">
-        <p><strong>Username:</strong> {profile.username}</p>
-        <p><strong>Email:</strong> {profile.email}</p>
-        <p><strong>First Name:</strong> {profile.firstName}</p>
-        <p><strong>Last Name:</strong> {profile.lastName}</p>
-        <p><strong>Street Address:</strong> {profile.streetAddress}</p>
-        <p><strong>Province/State:</strong> {profile.province}</p>
-        <p><strong>Country:</strong> {profile.country}</p>
-        <p><strong>Postal Code:</strong> {profile.postalCode}</p>
-        <p><strong>Seller:</strong> {profile.isSeller ? 'Yes' : 'No'}</p>
-      </div>
-
-      <h2 className="text-2xl font-semibold mb-4">My Listed Items</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-        {listedItems.map((item) => (
-          <div key={item.id} className="border p-4 rounded shadow">
-            <h3 className="text-xl font-bold mb-2">{item.name}</h3>
-            {item.imageUrls && item.imageUrls.length > 0 && (
-              <img
-                src={`http://localhost:8082${item.imageUrls[0]}`}
-                alt={item.name}
-                className="w-full h-48 object-cover mb-2"
-              />
+        <div className="flex justify-between items-start">
+          <div>
+            <p><strong>Username:</strong> {profile.username}</p>
+            <p><strong>Name:</strong> {profile.firstName} {profile.lastName}</p>
+            {isOwnProfile && (
+              <>
+                <p><strong>Email:</strong> {profile.email}</p>
+                <p><strong>Street Address:</strong> {profile.streetAddress}</p>
+                <p><strong>Province/State:</strong> {profile.province}</p>
+                <p><strong>Country:</strong> {profile.country}</p>
+                <p><strong>Postal Code:</strong> {profile.postalCode}</p>
+              </>
             )}
-            <p className="mb-2">{item.description}</p>
-            {item.auction && (
-              <p className="mb-2">Current Bid: ${item.auction.currentBidPrice?.toFixed(2)}</p>
-            )}
-            <a
-              href={`/items/${item.id}`}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              View Details
-            </a>
+            <p><strong>Seller:</strong> {profile.isSeller ? 'Yes' : 'No'}</p>
           </div>
-        ))}
+
+          {isOwnProfile && (
+            <div className="space-y-2">
+              <Link
+                to="/change-address"
+                className="block px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-center"
+              >
+                Change Address
+              </Link>
+              <Link
+                to="/change-password"
+                className="block px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-center"
+              >
+                Change Password
+              </Link>
+            </div>
+          )}
+        </div>
       </div>
 
-      <h2 className="text-2xl font-semibold mb-4">Items I've Bidded On</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {biddedItems.map((item) => (
-          <div key={item.id} className="border p-4 rounded shadow">
-            <h3 className="text-xl font-bold mb-2">{item.name}</h3>
-            {item.imageUrls && item.imageUrls.length > 0 && (
-              <img
-                src={`http://localhost:8082${item.imageUrls[0]}`}
-                alt={item.name}
-                className="w-full h-48 object-cover mb-2"
-              />
-            )}
-            <p className="mb-2">{item.description}</p>
-            {item.auction && (
-              <p className="mb-2">Current Bid: ${item.auction.currentBidPrice?.toFixed(2)}</p>
-            )}
-            <a
-              href={`/items/${item.id}`}
-              className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-            >
-              View Details
-            </a>
-          </div>
-        ))}
-      </div>
+      {/* Active Listings Section */}
+      {renderItemSection('Active Listings', items.active, true)}
 
+      {/* Expired Listings Section */}
+      {renderItemSection('Expired Listings', items.expired, false)}
     </div>
   );
 };

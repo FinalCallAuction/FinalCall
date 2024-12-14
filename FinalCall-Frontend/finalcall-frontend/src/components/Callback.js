@@ -1,4 +1,3 @@
-// src/components/Callback.js
 import React, { useEffect, useContext, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
@@ -49,12 +48,10 @@ const Callback = () => {
 
         // Decode JWT to extract user information
         const payload = JSON.parse(atob(accessToken.split('.')[1]));
-        const userId = payload.sub || ''; // Now 'sub' should be user ID
-        const email = payload.email || '';
-        const isSeller = payload.isSeller || false;
+        const userId = payload.sub || '';
 
-        // Fetch full user details by user ID
-        const userResp = await fetch(`http://localhost:8081/api/user/${encodeURIComponent(userId)}`, {
+        // Fetch full user details using the standardized endpoint
+        const userResp = await fetch(`http://localhost:8081/api/users/${encodeURIComponent(userId)}`, {
           headers: {
             'Authorization': `Bearer ${accessToken}`
           }
@@ -65,13 +62,12 @@ const Callback = () => {
         }
         const userData = await userResp.json();
 
-        // Set user with full details including id, isSeller
-        setUser({ 
-          username: userData.username, 
-          email: userData.email, 
+        setUser({
+          username: userData.username,
+          email: userData.email,
           id: userData.id,
           isSeller: userData.isSeller,
-          accessToken 
+          accessToken
         });
         localStorage.removeItem('oauth_state'); // Clean up
         navigate('/');

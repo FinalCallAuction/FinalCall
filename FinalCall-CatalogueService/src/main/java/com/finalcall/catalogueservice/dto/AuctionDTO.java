@@ -5,6 +5,7 @@ package com.finalcall.catalogueservice.dto;
 import java.time.LocalDateTime;
 
 public class AuctionDTO {
+	private Long id;
     private Long itemId;
     private String auctionType;
     private Double startingBidPrice;
@@ -12,6 +13,9 @@ public class AuctionDTO {
     private LocalDateTime auctionEndTime;
     private Long sellerId;
     private LocalDateTime startTime;
+    private Double priceDecrement; // For Dutch auctions
+    private Double minimumPrice;   // For Dutch auctions
+    private String status;
 
     // Constructors
     public AuctionDTO() {}
@@ -49,6 +53,18 @@ public class AuctionDTO {
 
     public LocalDateTime getStartTime() { return startTime; }
     public void setStartTime(LocalDateTime startTime) { this.startTime = startTime; }
+    
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    
+    public Double getPriceDecrement() { return priceDecrement; }
+    public void setPriceDecrement(Double priceDecrement) { this.priceDecrement = priceDecrement; }
+    
+    public Double getMinimumPrice() { return minimumPrice; }
+    public void setMinimumPrice(Double minimumPrice) { this.minimumPrice = minimumPrice; }
+    
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 
     @Override
     public String toString() {

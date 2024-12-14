@@ -1,15 +1,15 @@
-// src/components/ItemsPage.js
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import CountdownTimer from './CountdownTimer'; // Import the CountdownTimer component
+import CountdownTimer from './CountdownTimer';
 
 const ItemsPage = () => {
-  const [items, setItems] = useState([]); // List of items
-  const [loading, setLoading] = useState(true); // Loading state
-  const [error, setError] = useState(''); // Error message
-  const [currentPage, setCurrentPage] = useState(1); // Current page for pagination
-  const [itemsPerPage] = useState(9); // Items per page for pagination
-  const [searchTerm, setSearchTerm] = useState(''); // Search term
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(9);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [bidCounts, setBidCounts] = useState({});
 
   useEffect(() => {
     const fetchItems = async () => {
@@ -22,6 +22,23 @@ const ItemsPage = () => {
           const data = await response.json();
           setItems(data);
           setError('');
+
+          // Fetch bid counts for each auction
+          const bidCountPromises = data.map(item => 
+            fetch(`http://localhost:8084/api/auctions/${item.auction.id}/bids`)
+          );
+
+          const bidCountResponses = await Promise.all(bidCountPromises);
+          const bidCountData = await Promise.all(
+            bidCountResponses.map(response => response.json())
+          );
+
+          const countMap = {};
+          bidCountData.forEach((bids, index) => {
+            countMap[data[index].id] = bids.length;
+          });
+
+          setBidCounts(countMap);
         } else {
           const errorMsg = await response.text();
           setError(`Failed to fetch items: ${errorMsg}`);
@@ -50,7 +67,6 @@ const ItemsPage = () => {
   // Filter items based on search term
   const filteredItems = currentItems.filter((item) =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
-    // Removed description from search to align with UI changes
   );
 
   // Render loading state with skeleton loaders
@@ -118,10 +134,19 @@ const ItemsPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {filteredItems.map((item) => (
             <div key={item.id} className="border p-4 rounded shadow hover:shadow-lg transition-shadow duration-300">
-              <h2 className="text-xl font-semibold mb-2">{item.name}</h2>
+              <h2 className="text-xl font-semibold mb-1">{item.name}</h2>
+              <p className="text-sm text-gray-600 mb-2">
+                Listed by:{" "}
+                <Link 
+                  to={`/profile/${item.listedBy}`}
+                  className="text-blue-500 hover:underline"
+                >
+                  {item.listedByName}
+                </Link>
+              </p>
               {item.imageUrls && item.imageUrls.length > 0 ? (
                 <img
-                  src={`http://localhost:8082${item.imageUrls[0]}`} // Ensure the image URL is correct
+                  src={`http://localhost:8082${item.imageUrls[0]}`}
                   alt={item.name}
                   className="w-full h-48 object-cover mb-2 rounded"
                   loading="lazy"
@@ -134,14 +159,21 @@ const ItemsPage = () => {
                   loading="lazy"
                 />
               )}
-              {/* Removed description */}
               {item.auction && item.auction.auctionEndTime && (
                 <CountdownTimer endTime={item.auction.auctionEndTime} />
               )}
               {item.auction && (
-                <p className="mt-2">
-                  <strong>Current Bid:</strong> ${item.auction.currentBidPrice?.toFixed(2) || 'N/A'}
-                </p>
+                <div className="mt-2 space-y-1">
+                  <p>
+                    <strong>Starting Bid:</strong> ${item.auction.startingBidPrice?.toFixed(2) || 'N/A'}
+                  </p>
+                  <p>
+                    <strong>Current Bid:</strong> ${item.auction.currentBidPrice?.toFixed(2) || 'N/A'}
+                  </p>
+                  <p>
+                    <strong>Bids:</strong> {bidCounts[item.id] || 0}
+                  </p>
+                </div>
               )}
               <Link
                 to={`/items/${item.id}`}
