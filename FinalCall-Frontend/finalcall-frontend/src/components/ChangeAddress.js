@@ -8,7 +8,7 @@ import { getCountryOptions, getRegionOptions } from '../utils/countries';
 import { authFetch } from '../utils/authFetch';
 
 const ChangeAddress = () => {
-  const { user } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const [address, setAddress] = useState({
     streetAddress: '',
@@ -28,15 +28,15 @@ const ChangeAddress = () => {
       try {
         const response = await authFetch(`http://localhost:8081/api/user/${user.id}`, {
           method: 'GET',
-        });
+        }, logout);
 
         if (response.ok) {
           const data = await response.json();
           setAddress({
-            streetAddress: data.streetAddress,
+            streetAddress: data.streetAddress || '',
             country: countryOptions.find((c) => c.value === data.country) || null,
             province: null, // Will set after regionOptions are loaded
-            postalCode: data.postalCode,
+            postalCode: data.postalCode || '',
           });
           if (data.country) {
             const regions = getRegionOptions(data.country);
@@ -57,6 +57,7 @@ const ChangeAddress = () => {
     };
 
     fetchAddress();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user.id, countryOptions]);
 
   const handleChange = (e) => {
@@ -119,7 +120,7 @@ const ChangeAddress = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(updatedAddress),
-      });
+      }, logout);
 
       if (response.ok) {
         setMessage('Address updated successfully.');

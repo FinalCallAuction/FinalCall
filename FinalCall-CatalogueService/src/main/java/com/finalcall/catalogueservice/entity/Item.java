@@ -1,11 +1,14 @@
+// src/main/java/com/finalcall/catalogueservice/entity/Item.java
+
 package com.finalcall.catalogueservice.entity;
 
 import jakarta.persistence.*;
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 @Entity
-@Table(name = "items")
+@Table(name = "items", indexes = {@Index(columnList = "randomId", name = "idx_random_id", unique = true)})
 public class Item {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -14,114 +17,55 @@ public class Item {
     @Column(unique = true, nullable = false, length = 8)
     private String randomId;
 
+    @Column(nullable = false)
     private String name;
 
-    @Column(precision = 19, scale = 4)
-    private BigDecimal startingBid;
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String description;
 
-    @Column(precision = 19, scale = 4)
-    private BigDecimal currentBid;
+    private String keywords;
 
-    @Enumerated(EnumType.STRING)
-    private AuctionType auctionType;
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "item_images", joinColumns = @JoinColumn(name = "item_id"))
+    @Column(name = "image_url")
+    private List<String> imageUrls = new ArrayList<>();
 
-    private LocalDateTime auctionEndTime;
+    @Column(name = "listed_by", nullable = false)
+    private Long listedBy;
 
-    private String listedBy;
+    @Column(name = "starting_bid_price", nullable = false)
+    private Double startingBidPrice;
 
-    private String imageUrl;
-
-    private boolean sold;
-
-    // Constructors
-    public Item() {}
-
-    public Item(String name, BigDecimal startingBid, AuctionType auctionType, LocalDateTime auctionEndTime, String listedBy, String imageUrl) {
-        this.name = name;
-        this.startingBid = startingBid;
-        this.currentBid = startingBid;
-        this.auctionType = auctionType;
-        this.auctionEndTime = auctionEndTime;
-        this.listedBy = listedBy;
-        this.imageUrl = imageUrl;
-        this.sold = false;
+    public Item() {
+        this.randomId = UUID.randomUUID().toString().substring(0, 8);
     }
-    
+
     // Getters and Setters
-    public Long getId() {
-        return id;
-    }
 
-    public String getRandomId() {
-        return randomId;
-    }
+    public Long getId() { return id; }
 
-    public void setRandomId(String randomId) {
-        this.randomId = randomId;
-    }
+    public String getRandomId() { return randomId; }
+    public void setRandomId(String randomId) { this.randomId = randomId; }
 
-    public String getName() {
-        return name;
-    }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
 
-    public void setName(String name) {
-        this.name = name;
-    }
+    public String getDescription() { return description; }
+    public void setDescription(String description) { this.description = description; }
 
-    
-    public BigDecimal getStartingBid() {
-        return startingBid;
-    }
+    public String getKeywords() { return keywords; }
+    public void setKeywords(String keywords) { this.keywords = keywords; }
 
-    public void setStartingBid(BigDecimal startingBid) {
-        this.startingBid = startingBid;
-    }
+    public List<String> getImageUrls() { return imageUrls; }
+    public void setImageUrls(List<String> imageUrls) { this.imageUrls = imageUrls; }
 
-    public BigDecimal getCurrentBid() {
-        return currentBid;
-    }
+    public Long getListedBy() { return listedBy; }
+    public void setListedBy(Long listedBy) { this.listedBy = listedBy; }
 
-    public void setCurrentBid(BigDecimal currentBid) {
-        this.currentBid = currentBid;
-    }
+    public Double getStartingBidPrice() { return startingBidPrice; }
+    public void setStartingBidPrice(Double startingBidPrice) { this.startingBidPrice = startingBidPrice; }
 
-    public AuctionType getAuctionType() {
-        return auctionType;
-    }
-
-    public void setAuctionType(AuctionType auctionType) {
-        this.auctionType = auctionType;
-    }
-
-    public LocalDateTime getAuctionEndTime() {
-        return auctionEndTime;
-    }
-
-    public void setAuctionEndTime(LocalDateTime auctionEndTime) {
-        this.auctionEndTime = auctionEndTime;
-    }
-
-    public String getListedBy() {
-        return listedBy;
-    }
-
-    public void setListedBy(String listedBy) {
-        this.listedBy = listedBy;
-    }
-
-    public String getImageUrl() {
-        return imageUrl;
-    }
-
-    public void setImageUrl(String imageUrl) {
-        this.imageUrl = imageUrl;
-    }
-    
-    public boolean isSold() {
-        return sold;
-    }
-
-    public void setSold(boolean sold) {
-        this.sold = sold;
+    public void addImageUrl(String imageUrl) {
+        this.imageUrls.add(imageUrl);
     }
 }

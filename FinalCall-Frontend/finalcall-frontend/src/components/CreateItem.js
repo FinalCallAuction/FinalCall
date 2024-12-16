@@ -1,5 +1,3 @@
-// src/components/CreateItem.js
-
 import React, { useState, useContext, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
@@ -7,22 +5,27 @@ import { authFetch } from '../utils/authFetch';
 import { formatDistance } from 'date-fns';
 
 const CreateItem = () => {
-  const { user } = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const [itemDetails, setItemDetails] = useState({
     name: '',
     startingBid: '',
     auctionType: 'FORWARD', // Default value
     auctionEndTime: '',
+    description: '', // Description field 
+    // Dutch auction specific fields
+    priceDecrement: '',
+    minimumPrice: ''
   });
   const [error, setError] = useState('');
   const [timeDifference, setTimeDifference] = useState('');
-  const [image, setImage] = useState(null);
+  const [imageFiles, setImageFiles] = useState([]); // Support multiple images
 
   // If not logged in, redirect to login
   useEffect(() => {
     if (!user) {
       navigate('/login');
+      return;
     } else {
       // Set the default auction end time to 24 hours in the future
       const futureDate = new Date();
@@ -40,6 +43,7 @@ const CreateItem = () => {
         auctionEndTime: defaultAuctionEndTime,
       }));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, navigate]);
 
   // Update the time difference whenever auctionEndTime changes
@@ -64,15 +68,15 @@ const CreateItem = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setItemDetails((prevDetails) => ({
-      ...prevDetails,
+    setItemDetails({
+      ...itemDetails,
       [name]: value,
-    }));
+    });
   };
 
   const handleImageChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      setImage(e.target.files[0]);
+    if (e.target.files) {
+      setImageFiles(Array.from(e.target.files));
     }
   };
 
@@ -80,12 +84,38 @@ const CreateItem = () => {
     e.preventDefault();
     setError('');
 
-    const { name, startingBid, auctionType, auctionEndTime } = itemDetails;
+    const { 
+      name, 
+      startingBid, 
+      auctionType, 
+      auctionEndTime, 
+      description,
+      priceDecrement,
+      minimumPrice
+    } = itemDetails;
 
     // Basic validation
     if (!name || !startingBid || !auctionEndTime) {
       setError('Please fill in all required fields.');
       return;
+    }
+
+    // Additional validation for Dutch auctions
+    if (auctionType === 'DUTCH') {
+      if (!priceDecrement || !minimumPrice) {
+        setError('Price Decrement and Minimum Price are required for Dutch auctions.');
+        return;
+      }
+      
+      if (parseFloat(priceDecrement) <= 0 || parseFloat(minimumPrice) <= 0) {
+        setError('Price Decrement and Minimum Price must be positive values.');
+        return;
+      }
+      
+      if (parseFloat(minimumPrice) >= parseFloat(startingBid)) {
+        setError('Minimum Price must be less than Starting Bid Price for Dutch auctions.');
+        return;
+      }
     }
 
     const auctionEnd = new Date(auctionEndTime);
@@ -99,28 +129,56 @@ const CreateItem = () => {
     }
 
     try {
-      // Use FormData to handle file upload
-      const formData = new FormData();
-      formData.append('name', name);
-      formData.append('startingBid', parseFloat(startingBid));
-      formData.append('auctionType', auctionType);
-      formData.append('auctionEndTime', auctionEndTime);
-      if (image) {
-        formData.append('image', image);
-      }
+      // Create item without images
+      const itemData = {
+        name,
+        startingBid: parseFloat(startingBid),
+        auctionType,
+        auctionEndTime,
+        description, // Include description if applicable
+        // Add Dutch auction specific fields for the request
+        ...(auctionType === 'DUTCH' && {
+          priceDecrement: parseFloat(priceDecrement),
+          minimumPrice: parseFloat(minimumPrice)
+        })
+      };
 
       const response = await authFetch('http://localhost:8082/api/items/create', {
         method: 'POST',
-        body: formData,
-      });
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(itemData),
+      }, logout);
 
-      if (response.ok) {
-        alert('Item listed successfully!');
-        navigate('/items');
-      } else {
+      if (!response.ok) {
         const errorMsg = await response.text();
         setError(errorMsg);
+        return;
       }
+
+      const savedItem = await response.json();
+      const itemId = savedItem.id;
+
+      // If images are selected, upload images
+      if (imageFiles.length > 0) {
+        const formData = new FormData();
+        imageFiles.forEach((file) => {
+          formData.append('images', file);
+        });
+
+        const uploadResponse = await authFetch(`http://localhost:8082/api/items/${itemId}/upload-image`, {
+          method: 'POST',
+          body: formData,
+        }, logout);
+
+        if (!uploadResponse.ok) {
+          const errorMsg = await uploadResponse.text();
+          setError(`Item created, but failed to upload images: ${errorMsg}`);
+          return;
+        }
+      }
+
+      alert('Item listed successfully!');
+      navigate('/items');
     } catch (err) {
       setError('An error occurred while listing the item.');
       console.error('Create Item Error:', err);
@@ -144,6 +202,7 @@ const CreateItem = () => {
         className="bg-white p-6 rounded shadow-md"
         encType="multipart/form-data"
       >
+        {/* Existing fields */}
         <div className="mb-4">
           <label className="block text-gray-700" htmlFor="name">
             Item Name
@@ -159,23 +218,39 @@ const CreateItem = () => {
             placeholder="Enter a descriptive item name"
           />
         </div>
-        <div className="mb-4">
-          <label className="block text-gray-700" htmlFor="startingBid">
-            Starting Bid ($)
-          </label>
-          <input
-            type="number"
-            name="startingBid"
-            id="startingBid"
-            value={itemDetails.startingBid}
-            onChange={handleChange}
-            required
-            className="w-full px-3 py-2 border rounded mt-1"
-            placeholder="Enter the starting bid"
-            min="0"
-            step="0.01"
-          />
-        </div>
+		<div className="mb-6">
+		          <label className="block text-gray-700" htmlFor="description">
+		            Description:
+		          </label>
+		          <textarea
+		            name="description"
+		            id="description"
+		            value={itemDetails.description}
+		            onChange={handleChange}
+		            className="w-full px-3 py-2 border rounded mt-1"
+		            placeholder="Enter a detailed description of the item"
+		            rows="4"
+		          ></textarea>
+		        </div>
+
+		        <div className="mb-4">
+		          <label className="block text-gray-700" htmlFor="startingBid">
+		            Starting Bid ($)
+		          </label>
+		          <input
+		            type="number"
+		            name="startingBid"
+		            id="startingBid"
+		            value={itemDetails.startingBid}
+		            onChange={handleChange}
+		            required
+		            className="w-full px-3 py-2 border rounded mt-1"
+		            placeholder="Enter the starting bid"
+		            min="0"
+		            step="0.01"
+		          />
+		        </div>
+
         <div className="mb-4">
           <label className="block text-gray-700" htmlFor="auctionType">
             Auction Type
@@ -191,6 +266,54 @@ const CreateItem = () => {
             <option value="DUTCH">Dutch Auction</option>
           </select>
         </div>
+
+        {/* Dutch Auction Specific Fields - Conditionally Rendered */}
+        {itemDetails.auctionType === 'DUTCH' && (
+          <>
+            <div className="mb-4">
+              <label className="block text-gray-700" htmlFor="priceDecrement">
+                Price Decrement ($)
+              </label>
+              <input
+                type="number"
+                name="priceDecrement"
+                id="priceDecrement"
+                value={itemDetails.priceDecrement}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border rounded mt-1"
+                placeholder="Enter price decrement per interval"
+                min="0.01"
+                step="0.01"
+              />
+              <p className="text-sm text-gray-600 mt-1">
+                Amount the price will decrease at each interval
+              </p>
+            </div>
+            <div className="mb-4">
+              <label className="block text-gray-700" htmlFor="minimumPrice">
+                Minimum Price ($)
+              </label>
+              <input
+                type="number"
+                name="minimumPrice"
+                id="minimumPrice"
+                value={itemDetails.minimumPrice}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border rounded mt-1"
+                placeholder="Enter the lowest acceptable price"
+                min="0"
+                step="0.01"
+              />
+              <p className="text-sm text-gray-600 mt-1">
+                The lowest price the item can be sold at
+              </p>
+            </div>
+          </>
+        )}
+
+        {/* Rest of the existing form */}
         <div className="mb-6">
           <label className="block text-gray-700" htmlFor="auctionEndTime">
             Auction End Time{' '}
@@ -221,22 +344,8 @@ const CreateItem = () => {
             } // Sets the minimum selectable time to 1 hour from now
           />
         </div>
-        <div className="mb-6">
-          <label className="block text-gray-700" htmlFor="image">
-            Upload Image
-          </label>
-          <input
-            type="file"
-            name="image"
-            id="image"
-            accept="image/*"
-            onChange={handleImageChange}
-            className="w-full px-3 py-2 border rounded mt-1"
-          />
-          {image && (
-            <p className="text-sm text-gray-600 mt-2">{image.name} selected</p>
-          )}
-        </div>
+
+        {/* Rest of the form */}
         <button
           type="submit"
           className="w-full bg-yellow-500 text-white py-2 rounded hover:bg-yellow-600"

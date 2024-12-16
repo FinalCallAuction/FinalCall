@@ -1,5 +1,3 @@
-// src/main/java/com/finalcall/authenticationservice/controller/UserController.java
-
 package com.finalcall.authenticationservice.controller;
 
 import com.finalcall.authenticationservice.entity.User;
@@ -9,12 +7,15 @@ import com.finalcall.authenticationservice.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/user")
-@CrossOrigin(origins = "http://localhost:3000") // Adjust as per frontend port
+@RequestMapping("/api")  // Changed from "/api/user" to "/api"
+@CrossOrigin(origins = "http://localhost:3000")
 public class UserController {
 
     @Autowired
@@ -62,27 +63,27 @@ public class UserController {
      * @param userId The user ID.
      * @return User details.
      */
-    @GetMapping("/{id}")
+    @GetMapping("/users/{id}")
     public ResponseEntity<?> getUserById(@PathVariable("id") Long userId) {
         Optional<User> userOpt = userService.findById(userId);
         if (userOpt.isPresent()) {
             User user = userOpt.get();
+            // Only return public information for non-authenticated requests
             UserDTO userDTO = new UserDTO(
                 user.getId(),
                 user.getUsername(),
-                user.getEmail(),
+                null,  // Don't include email
                 user.getFirstName(),
                 user.getLastName(),
-                user.getStreetAddress(),
-                user.getProvince(),
+                null,  // Don't include private address details
+                null,
                 user.getCountry(),
-                user.getPostalCode(),
+                null,
                 user.getIsSeller()
             );
             return ResponseEntity.ok(userDTO);
-        } else {
-            return ResponseEntity.status(404).body("User not found");
         }
+        return ResponseEntity.notFound().build();
     }
 
     /**
@@ -125,4 +126,28 @@ public class UserController {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
+    
+    @GetMapping("/all")
+    public ResponseEntity<?> getAllUsers() {
+        try {
+            List<User> users = userService.findAll();
+            List<UserDTO> userDTOs = users.stream().map(user -> new UserDTO(
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getStreetAddress(),
+                user.getProvince(),
+                user.getCountry(),
+                user.getPostalCode(),
+                user.getIsSeller()
+            )).collect(Collectors.toList());
+            return ResponseEntity.ok(userDTOs);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Failed to fetch users");
+        }
+    }
+    
+  
 }
