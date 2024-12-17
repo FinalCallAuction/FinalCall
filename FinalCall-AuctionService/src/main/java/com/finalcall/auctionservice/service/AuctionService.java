@@ -53,15 +53,18 @@ public class AuctionService {
         // Initialize currentBidPrice based on auction type
         if (auctionDTO.getAuctionType() == AuctionType.FORWARD) {
             auction.setCurrentBidPrice(auctionDTO.getStartingBidPrice());
+            auction.setAuctionEndTime(auctionDTO.getAuctionEndTime());
         } else if (auctionDTO.getAuctionType() == AuctionType.DUTCH) {
             auction.setCurrentBidPrice(auctionDTO.getStartingBidPrice());
 
             // Set price decrement and minimum price for Dutch auctions
             auction.setPriceDecrement(auctionDTO.getPriceDecrement());
             auction.setMinimumPrice(auctionDTO.getMinimumPrice());
+
+            // No auctionEndTime for Dutch auctions
+            auction.setAuctionEndTime(null);
         }
 
-        auction.setAuctionEndTime(auctionDTO.getAuctionEndTime());
         auction.setSellerId(auctionDTO.getSellerId());
         auction.setStartTime(auctionDTO.getStartTime());
         auction.setStatus(AuctionStatus.ACTIVE);
@@ -163,31 +166,6 @@ public class AuctionService {
     }
 
     /**
-     * Scheduled task to decrease Dutch auction prices.
-     */
-    @Scheduled(fixedRate = 60000) // Every minute
-    @Transactional
-    public void decreaseDutchAuctionPrices() {
-        List<Auction> activeDutchAuctions = auctionRepository
-            .findByAuctionTypeAndStatus(AuctionType.DUTCH, AuctionStatus.ACTIVE);
-
-        for (Auction auction : activeDutchAuctions) {
-            double newPrice = auction.getCurrentBidPrice() - auction.getPriceDecrement();
-            
-            if (newPrice <= auction.getMinimumPrice()) {
-                // End auction if price would go below minimum
-                auction.setCurrentBidPrice(auction.getMinimumPrice());
-                auction.setStatus(AuctionStatus.ENDED);
-            } else {
-                auction.setCurrentBidPrice(newPrice);
-            }
-            
-            auctionRepository.save(auction);
-            eventPublisher.publishEvent(new AuctionUpdatedEvent(this, auction));
-        }
-    }
-
-    /**
      * Maps Auction entity to AuctionDTO.
      */
     public AuctionDTO mapToDTO(Auction auction) {
@@ -271,5 +249,36 @@ public class AuctionService {
                 return bidDTO;
             })
             .collect(Collectors.toList());
+    }
+    
+    // For Dutch Auctions
+    @Transactional
+    public BidResponse manualDecrement(Long auctionId, Long userId) {
+        Auction auction = auctionRepository.findById(auctionId)
+                .orElseThrow(() -> new AuctionNotFoundException("Auction not found with ID: " + auctionId));
+
+        // Ensure it's a DUTCH auction and active
+        if (auction.getAuctionType() != AuctionType.DUTCH || auction.getStatus() != AuctionStatus.ACTIVE) {
+            throw new InvalidBidException("Auction is not an active Dutch auction.");
+        }
+
+        // Check if the user is authorized to decrement (e.g., seller)
+        if (!auction.getSellerId().equals(userId)) {
+            throw new InvalidBidException("Only the seller can decrement the price.");
+        }
+
+        double newPrice = auction.getCurrentBidPrice() - auction.getPriceDecrement();
+
+        if (newPrice < auction.getMinimumPrice()) {
+            throw new InvalidBidException("Cannot decrement below the minimum price of $" + auction.getMinimumPrice());
+        }
+
+        auction.setCurrentBidPrice(newPrice);
+        auctionRepository.save(auction);
+
+        // Publish the update event
+        eventPublisher.publishEvent(new AuctionUpdatedEvent(this, auction));
+
+        return new BidResponse("Price decremented successfully", auction.getCurrentBidPrice());
     }
 }

@@ -24,13 +24,14 @@ public class Auction {
 
     private Double currentBidPrice;
 
+    // Make auctionEndTime nullable
     private LocalDateTime auctionEndTime;
 
     private Long sellerId;
 
     private LocalDateTime startTime;
 
-    // For DUTCH auctions
+    // Retain for potential manual decrement rules
     private Double priceDecrement;
 
     private Double minimumPrice;

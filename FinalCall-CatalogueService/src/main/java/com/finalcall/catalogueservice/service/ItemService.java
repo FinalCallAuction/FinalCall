@@ -96,17 +96,28 @@ public class ItemService {
         Item savedItem = createItem(item);
 
         // Create AuctionDTO
-        AuctionDTO auctionDTO = new AuctionDTO();
-        auctionDTO.setItemId(savedItem.getId());
-        auctionDTO.setAuctionType(itemRequest.getAuctionType());
-        auctionDTO.setStartingBidPrice(itemRequest.getStartingBid());
-        auctionDTO.setCurrentBidPrice(itemRequest.getStartingBid());
-        auctionDTO.setAuctionEndTime(itemRequest.getAuctionEndTime());
-        auctionDTO.setSellerId(userId);
-        auctionDTO.setStartTime(itemRequest.getAuctionStartTime() != null ? itemRequest.getAuctionStartTime() : LocalDateTime.now());
+     // src/main/java/com/finalcall/catalogueservice/service/ItemService.java
 
-        // Create Auction via AuctionService
-        ResponseEntity<?> auctionResponse = auctionServiceClient.createAuction(auctionDTO);
+     // After fetching itemRequest and before calling auctionServiceClient.createAuction
+
+	     AuctionDTO auctionDTO = new AuctionDTO();
+	     auctionDTO.setItemId(savedItem.getId());
+	     auctionDTO.setAuctionType(itemRequest.getAuctionType());
+	     auctionDTO.setStartingBidPrice(itemRequest.getStartingBid());
+	     auctionDTO.setCurrentBidPrice(itemRequest.getStartingBid());
+	     auctionDTO.setAuctionEndTime(itemRequest.getAuctionEndTime());
+	     auctionDTO.setSellerId(userId);
+	     auctionDTO.setStartTime(itemRequest.getAuctionStartTime() != null ? itemRequest.getAuctionStartTime() : LocalDateTime.now());
+	
+	     // If the auction type is DUTCH, set the price decrement and minimum price
+	     if ("DUTCH".equalsIgnoreCase(itemRequest.getAuctionType())) {
+	         auctionDTO.setPriceDecrement(itemRequest.getPriceDecrement());
+	         auctionDTO.setMinimumPrice(itemRequest.getMinimumPrice());
+	     }
+	
+	     // Create Auction via AuctionService
+	     ResponseEntity<?> auctionResponse = auctionServiceClient.createAuction(auctionDTO);
+
         if (auctionResponse.getStatusCode() != HttpStatus.CREATED) {
             logger.error("Failed to create auction: {}", auctionResponse.getStatusCode());
             throw new Exception("Failed to create auction.");
