@@ -18,7 +18,7 @@ public class PaymentController {
     private PaymentService paymentService;
     
     @GetMapping("/auction/{auctionId}/payment-page")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAuthority('SCOPE_read')")
     public String showPaymentPage(@PathVariable Long auctionId, Model model) {
         var auctionDetails = paymentService.getAuctionDetails(auctionId);
         model.addAttribute("auctionDetails", auctionDetails);
@@ -27,7 +27,7 @@ public class PaymentController {
     }
 
     @PostMapping("/process-auction-payment/{auctionId}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAuthority('SCOPE_write')")
     public ResponseEntity<PaymentResponse> processAuctionPayment(
             @PathVariable Long auctionId,
             @Valid @RequestBody PaymentRequest paymentRequest) {
@@ -36,14 +36,14 @@ public class PaymentController {
     }
 
     @GetMapping("/auction/{auctionId}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAuthority('SCOPE_read')")
     public ResponseEntity<PaymentResponse> getAuctionPayment(@PathVariable Long auctionId) {
         PaymentResponse response = paymentService.getPaymentByAuctionId(auctionId);
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/user/{userId}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAuthority('SCOPE_read')")
     public ResponseEntity<?> getUserPayments(@PathVariable Long userId) {
         var payments = paymentService.getPaymentsByUserId(userId);
         return ResponseEntity.ok(payments);
