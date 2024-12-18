@@ -1,7 +1,9 @@
 // src/main/java/com/finalcall/auctionservice/dto/UserDTO.java
-
 package com.finalcall.auctionservice.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class UserDTO {
     private Long id;
     private String username;

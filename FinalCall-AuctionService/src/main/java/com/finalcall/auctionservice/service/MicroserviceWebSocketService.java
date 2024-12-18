@@ -53,7 +53,6 @@ public class MicroserviceWebSocketService {
         }
     }
 
-
     private void connectToService(String serviceName, String url, String internalToken) {
         WebSocketHttpHeaders headers = new WebSocketHttpHeaders();
         headers.add("X-Internal-Token", internalToken);
@@ -64,6 +63,7 @@ public class MicroserviceWebSocketService {
                 @Override
                 public void afterConnectionEstablished(WebSocketSession session) throws Exception {
                     sessions.put(serviceName, session);
+                    System.out.println("WebSocket connection to " + serviceName + " established");
                 }
 
                 @Override
@@ -72,7 +72,6 @@ public class MicroserviceWebSocketService {
                         Map<String, Object> response = objectMapper.readValue(message.getPayload(), Map.class);
                         String requestId = (String) response.get("requestId");
 
-                        // If requestId is missing, log and ignore
                         if (requestId == null) {
                             System.err.println("Received response without requestId: " + message.getPayload());
                             return;
@@ -106,15 +105,18 @@ public class MicroserviceWebSocketService {
 
             }, headers, URI.create(url)).get();
 
-            if (session.isOpen()) {
-                System.out.println("WebSocket connection to " + serviceName + " established");
-            } else {
+            if (!session.isOpen()) {
                 System.err.println("WebSocket connection to " + serviceName + " failed to open");
             }
         } catch (Exception e) {
             System.err.println("Error connecting to " + serviceName + " service at " + url);
             e.printStackTrace();
         }
+    }
+
+    public boolean isConnected(String serviceName) {
+        WebSocketSession session = sessions.get(serviceName);
+        return session != null && session.isOpen();
     }
 
     public <T> CompletableFuture<T> sendRequest(String service, String type, Object data, Class<T> responseType) {

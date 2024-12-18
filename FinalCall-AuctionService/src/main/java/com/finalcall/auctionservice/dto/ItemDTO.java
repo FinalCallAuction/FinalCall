@@ -1,7 +1,9 @@
 package com.finalcall.auctionservice.dto;
 
 import java.util.List;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class ItemDTO {
     private Long id;
     private String name;

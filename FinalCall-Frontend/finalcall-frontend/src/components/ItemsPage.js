@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useCallback } from "react";
+// src/components/ItemsPage.js
+import React, { useState, useEffect, useCallback } from "react";
 import { Link } from 'react-router-dom';
 import CountdownTimer from './CountdownTimer';
 
@@ -39,28 +40,46 @@ const ItemsPage = () => {
 
         // Connect to WebSocket for real-time updates
         const ws = new WebSocket('ws://localhost:8082/ws/items');
-        
+
         ws.onopen = () => {
             console.log("Connected to items WebSocket");
         };
 
         ws.onmessage = (event) => {
-            const message = JSON.parse(event.data);
-            
-            switch(message.type) {
-                case "INITIAL_ITEMS":
-                    setItems(message.data);
-                    break;
-                case "ITEM_UPDATE":
-                    setItems(prevItems => 
-                        prevItems.map(item => 
-                            item.id === message.data.id ? message.data : item
-                        )
-                    );
-                    break;
-                default:
-                    console.log("Unknown message type:", message.type);
+            try {
+                const message = JSON.parse(event.data);
+
+                switch(message.type) {
+                    case "INITIAL_ITEMS":
+                        setItems(message.data);
+                        break;
+                    case "ITEM_UPDATE":
+                        setItems(prevItems => {
+                            const exists = prevItems.some(item => item.id === message.data.id);
+                            if (exists) {
+                                return prevItems.map(item =>
+                                    item.id === message.data.id ? message.data : item
+                                );
+                            } else {
+                                // New item received
+                                return [message.data, ...prevItems];
+                            }
+                        });
+                        break;
+                    default:
+                        console.log("Unknown message type:", message.type);
+                }
+            } catch (error) {
+                console.error("Error parsing WebSocket message:", error);
             }
+        };
+
+        ws.onerror = (error) => {
+            console.error("WebSocket error:", error);
+        };
+
+        ws.onclose = () => {
+            console.log("WebSocket connection closed");
         };
 
         return () => {
@@ -69,6 +88,8 @@ const ItemsPage = () => {
             }
         };
     }, [fetchItems]);
+	
+	
 
     // Filter and pagination logic
     const filteredItems = items.filter((item) =>
@@ -83,7 +104,7 @@ const ItemsPage = () => {
     return (
         <div className="container mx-auto px-4 py-6">
             <h1 className="text-3xl font-bold mb-4">All Items</h1>
-            
+
             {/* Search Input */}
             <div className="mb-4">
                 <input
@@ -100,7 +121,7 @@ const ItemsPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     {[...Array(itemsPerPage)].map((_, index) => (
                         <div key={index} className="border p-4 rounded shadow animate-pulse">
-                            <div className="h-48 bg-gray-300 rounded mb-2"></div>
+                            <div className="h-48 bg-gray-200 rounded mb-2"></div>
                             <div className="h-6 bg-gray-300 rounded w-3/4 mb-2"></div>
                             <div className="h-4 bg-gray-300 rounded mb-2"></div>
                             <div className="h-4 bg-gray-300 rounded w-1/2"></div>
@@ -116,10 +137,10 @@ const ItemsPage = () => {
                     {currentItems.map(item => (
                         <div key={item.id} className="border p-4 rounded shadow hover:shadow-lg transition-shadow duration-300">
                             <h2 className="text-xl font-semibold mb-2">{item.name}</h2>
-                            
+
                             {/* Listed By */}
                             <p className="text-sm text-gray-600 mb-2">
-                                Listed by: 
+                                Listed by:
                                 <Link to={`/profile/${item.listedBy}`} className="text-blue-500 hover:underline ml-1">
                                     {item.listedByName}
                                 </Link>

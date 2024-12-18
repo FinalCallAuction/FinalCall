@@ -131,25 +131,23 @@ public class ItemService {
             public void afterCommit() {
                 try {
                     CompletableFuture<AuctionDTO> auctionFuture = webSocketService.sendRequest(
-                        "auction", 
-                        "auction.create", 
-                        auctionDTO, 
+                        "auction",
+                        "auction.create",
+                        auctionDTO,
                         AuctionDTO.class
                     );
-
-                    auctionFuture.thenAccept(createdAuction -> {
-                        if (createdAuction == null) {
-                            logger.error("Failed to create auction for item ID: {}", savedItem.getId());
-                        }
-                    }).exceptionally(ex -> {
-                        logger.error("Exception while creating auction", ex);
-                        return null;
-                    });
+                    AuctionDTO createdAuction = auctionFuture.get(5, TimeUnit.SECONDS);
+                    if (createdAuction == null) {
+                        logger.error("No auction returned for item: {}", savedItem.getId());
+                    } else {
+                        logger.info("Auction created successfully for item: {}", savedItem.getId());
+                    }
                 } catch (Exception e) {
-                    logger.error("Exception while creating auction after item commit", e);
+                    logger.error("Error creating auction after commit for item {}", savedItem.getId(), e);
                 }
             }
         });
+
 
         String sellerName = fetchSellerName(userId);
         return mapToItemDTO(savedItem, auctionDTO, sellerName);

@@ -191,6 +191,7 @@ public class AuctionService {
         return bidResponse;
     }
 
+    @Transactional
     public AuctionDTO mapToDTO(Auction auction) {
         AuctionDTO dto = new AuctionDTO();
         dto.setId(auction.getId());
@@ -204,7 +205,7 @@ public class AuctionService {
         dto.setPriceDecrement(auction.getPriceDecrement());
         dto.setMinimumPrice(auction.getMinimumPrice());
         dto.setCurrentBidderId(auction.getCurrentBidderId());
-        dto.setImageUrls(auction.getImageUrls());
+        dto.setImageUrls(new ArrayList<>(auction.getImageUrls())); 
         dto.setStatus(auction.getStatus().name());
         return dto;
     }

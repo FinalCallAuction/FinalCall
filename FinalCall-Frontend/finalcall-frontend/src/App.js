@@ -25,10 +25,10 @@ const App = () => {
 
   useEffect(() => {
     const handleNewItem = (event) => {
-      // You can implement a callback or use a state management library
-      // For simplicity, we'll just log the new item
       console.log('New item received via WebSocket:', event.detail);
-      // Optionally, trigger a state update or notify the ItemsPage
+      // Dispatch a custom event or use a state management library
+      const newItem = event.detail;
+      window.dispatchEvent(new CustomEvent('refreshItems', { detail: newItem }));
     };
 
     window.addEventListener('newItem', handleNewItem);

@@ -42,20 +42,23 @@ public class InternalWebSocketHandler implements WebSocketHandler {
 
         try {
         	switch (type) {
-            case "auction.getByItemId":
-                Long itemId = Long.valueOf(data.toString());
-                Optional<Auction> auction = auctionService.findByItemId(itemId);
-                AuctionDTO auctionDTO = auction.map(a -> auctionService.mapToDTO(a)).orElse(null);
-                response.put("data", auctionDTO);
-                break;
             case "auction.create":
                 AuctionDTO newAuction = objectMapper.convertValue(data, AuctionDTO.class);
-                Auction createdAuction = auctionService.createAuction(newAuction);
-                response.put("data", auctionService.mapToDTO(createdAuction));
+                Auction created = auctionService.createAuction(newAuction);
+                response.put("data", auctionService.mapToDTO(created));
                 break;
+
+            case "auction.getByItemId":
+                Long itemId = Long.valueOf(data.toString());
+                Optional<Auction> optAuc = auctionService.findByItemId(itemId);
+                AuctionDTO aucDTO = optAuc.map(a -> auctionService.mapToDTO(a)).orElse(null);
+                response.put("data", aucDTO);
+                break;
+
             default:
                 response.put("error", "Unknown request type: " + type);
         }
+
 
         } catch (Exception e) {
             response.put("error", e.getMessage());

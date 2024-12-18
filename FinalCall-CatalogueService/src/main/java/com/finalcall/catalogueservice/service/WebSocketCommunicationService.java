@@ -1,6 +1,7 @@
 package com.finalcall.catalogueservice.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.finalcall.catalogueservice.dto.AuctionDTO;
 
 import jakarta.annotation.PostConstruct;
 
@@ -47,6 +48,21 @@ public class WebSocketCommunicationService {
     @Autowired
     private ObjectMapper objectMapper; // use the bean from JacksonConfig
 
+    public CompletableFuture<AuctionDTO> handleIncomingAuctionMessage(String messagePayload) {
+        CompletableFuture<AuctionDTO> future = new CompletableFuture<>();
+        try {
+            Map<String, Object> messageMap = objectMapper.readValue(messagePayload, Map.class);
+            String requestId = (String) messageMap.get("requestId");
+            Map<String, Object> data = (Map<String, Object>) messageMap.get("data");
+            
+            AuctionDTO auctionDTO = objectMapper.convertValue(data, AuctionDTO.class);
+            future.complete(auctionDTO);
+        } catch (Exception e) {
+            future.completeExceptionally(e);
+        }
+        return future;
+    }
+    
     public WebSocketCommunicationService() {
         this.webSocketClient = new StandardWebSocketClient();
     }

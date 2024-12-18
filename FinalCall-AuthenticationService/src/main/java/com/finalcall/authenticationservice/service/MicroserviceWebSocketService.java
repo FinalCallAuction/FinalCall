@@ -1,6 +1,8 @@
 package com.finalcall.authenticationservice.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.finalcall.authenticationservice.dto.UserDTO;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,6 +13,7 @@ import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.net.URI;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
@@ -23,6 +26,8 @@ public class MicroserviceWebSocketService {
     private final ObjectMapper objectMapper;
     private final Map<String, WebSocketSession> serviceSessions;
     private final Map<String, CompletableFuture<Object>> pendingRequests;
+    
+    private UserService userService;
 
     @Value("${websocket.service.tokens.catalogue:auth-catalogue-internal-token}")
     private String catalogueServiceToken;
@@ -84,19 +89,33 @@ public class MicroserviceWebSocketService {
                 }
 
                 @Override
-                protected void handleTextMessage(WebSocketSession session, TextMessage message) {
+                protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
+                    Map<String, Object> payload = objectMapper.readValue(message.getPayload(), Map.class);
+                    String type = (String) payload.get("type");
+                    String requestId = (String) payload.get("requestId");
+                    Object data = payload.get("data");
+
+                    Map<String, Object> response = new HashMap<>();
+                    response.put("requestId", requestId);
+
                     try {
-                        logger.debug("Received message from {}: {}", serviceName, message.getPayload());
-                        Map<String, Object> response = objectMapper.readValue(message.getPayload(), Map.class);
-                        String requestId = (String) response.get("requestId");
-                        CompletableFuture<Object> future = pendingRequests.remove(requestId);
-                        if (future != null) {
-                            future.complete(response.get("data"));
+                        switch (type) {
+                            case "user.getById":
+                                Long userId = Long.valueOf(data.toString());
+                                UserDTO userDTO = userService.getUserById(userId); 
+                                // userService.getUserById should fetch user from authdb and return UserDTO
+                                response.put("data", userDTO);
+                                break;
+                            default:
+                                response.put("error", "Unknown request type: " + type);
                         }
                     } catch (Exception e) {
-                        logger.error("Error processing message from {}: {}", serviceName, e.getMessage());
+                        response.put("error", e.getMessage());
                     }
+
+                    session.sendMessage(new TextMessage(objectMapper.writeValueAsString(response)));
                 }
+
 
                 @Override
                 public void handleTransportError(WebSocketSession session, Throwable exception) {

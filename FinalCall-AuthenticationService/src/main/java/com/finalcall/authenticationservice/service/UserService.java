@@ -1,5 +1,6 @@
 package com.finalcall.authenticationservice.service;
 
+import com.finalcall.authenticationservice.dto.UserDTO;
 import com.finalcall.authenticationservice.entity.User;
 import com.finalcall.authenticationservice.repository.UserRepository;
 
@@ -57,6 +58,27 @@ public class UserService {
 	    public Optional<User> findById(Long id) {
 	        return userRepository.findById(id);
 	    }
+	    
+	    public UserDTO getUserById(Long userId) throws Exception {
+	        User user = userRepository.findById(userId)
+	            .orElseThrow(() -> new Exception("User not found."));
+
+	        // Convert User to UserDTO
+	        UserDTO userDTO = new UserDTO(
+	            user.getId(),
+	            user.getUsername(),
+	            user.getEmail(),
+	            user.getFirstName(),
+	            user.getLastName(),
+	            user.getStreetAddress(),
+	            user.getProvince(),
+	            user.getCountry(),
+	            user.getPostalCode(),
+	            user.getIsSeller()
+	        );
+	        return userDTO;
+	    }
+
 
 	    /**
 	     * Authenticates a user with the provided username and password.

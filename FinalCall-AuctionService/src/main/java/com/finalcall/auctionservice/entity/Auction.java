@@ -10,7 +10,6 @@ import java.util.List;
 @Entity
 @Table(name = "auctions")
 public class Auction {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -21,31 +20,25 @@ public class Auction {
     private AuctionType auctionType;
 
     private Double startingBidPrice;
-
     private Double currentBidPrice;
 
-    // Make auctionEndTime nullable
     private LocalDateTime auctionEndTime;
 
     private Long sellerId;
 
     private LocalDateTime startTime;
 
-    // Retain for potential manual decrement rules
     private Double priceDecrement;
-
     private Double minimumPrice;
-
     private Long currentBidderId;
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER) // Ensure EAGER fetch
     @CollectionTable(name = "auction_images", joinColumns = @JoinColumn(name = "auction_id"))
     @Column(name = "image_url")
     private List<String> imageUrls = new ArrayList<>();
 
     @Enumerated(EnumType.STRING)
     private AuctionStatus status;
-
     // Constructors
 
     public Auction() {
