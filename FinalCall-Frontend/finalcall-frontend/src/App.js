@@ -14,9 +14,9 @@ import ChangePassword from './components/ChangePassword';
 import ChangeAddress from './components/ChangeAddress';
 import MyBids from './components/MyBids';
 import PrivateRoute from './components/PrivateRoute';
-import MakePayment from './components/payment/MakePayment';
-import PaymentConfirmation from './components/payment/PaymentConfirmation';
-import PaymentHistory from './components/payment/PaymentHistory';
+import MakePayment from './components/MakePayment';
+import PaymentConfirmation from './components/PaymentConfirmation';
+import PaymentHistory from './components/PaymentHistory';
 
 const App = () => {
   const { user } = useContext(AuthContext);
