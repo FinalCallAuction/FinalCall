@@ -1,10 +1,10 @@
-// src/setupProxy.js
+// setupProxy.js
 const { createProxyMiddleware } = require('http-proxy-middleware');
 
 module.exports = function(app) {
-  // Proxy OAuth2 and Authentication API
+  // Authentication Service Proxy
   app.use(
-    '/oauth2',
+    ['/oauth2', '/api/auth', '/api/users'],
     createProxyMiddleware({
       target: 'http://localhost:8081',
       changeOrigin: true,
@@ -12,55 +12,33 @@ module.exports = function(app) {
     })
   );
 
+  // Catalogue Service Proxy
   app.use(
-    '/api',
-    createProxyMiddleware({
-      target: 'http://localhost:8081',
-      changeOrigin: true,
-      ws: true,
-    })
-  );
-
-  // Proxy CatalogueService (if needed with a path rewrite)
-  app.use(
-    '/catalogue-api',
+    ['/api/items', '/ws', '/itemimages'],
     createProxyMiddleware({
       target: 'http://localhost:8082',
       changeOrigin: true,
-      pathRewrite: { '^/catalogue-api': '/api' },
       ws: true,
     })
   );
 
-  // Proxy PaymentService (if needed with a path rewrite)
+  // Auction Service Proxy
   app.use(
-    '/payment-api',
-    createProxyMiddleware({
-      target: 'http://localhost:8083',
-      changeOrigin: true,
-      pathRewrite: { '^/payment-api': '/api' },
-      ws: true,
-    })
-  );
-
-  // Proxy AuctionService (if needed with a path rewrite)
-  app.use(
-    '/auction-api',
+    ['/api/auctions', '/ws/auctions', '/ws/notifications'],
     createProxyMiddleware({
       target: 'http://localhost:8084',
       changeOrigin: true,
-      pathRewrite: { '^/auction-api': '/api' },
       ws: true,
     })
   );
 
-  // **Important**: Proxy WebSocket connections to AuctionService
+  // Payment Service Proxy
   app.use(
-    '/ws',
+    '/api/payments',
     createProxyMiddleware({
-      target: 'ws://localhost:8084',
-      ws: true,
+      target: 'http://localhost:8083',
       changeOrigin: true,
+      ws: true,
     })
   );
 };

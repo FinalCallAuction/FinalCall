@@ -68,6 +68,9 @@ public class ItemService {
     }
 
     private ItemDTO mapToItemDTO(Item item, AuctionDTO auctionDTO, String sellerName) {
+        logger.debug("Mapping item {} to DTO with auction data: {}", 
+            item.getId(), auctionDTO != null ? "present" : "absent");
+        
         ItemDTO itemDTO = new ItemDTO();
         itemDTO.setId(item.getId());
         itemDTO.setRandomId(item.getRandomId());
@@ -79,6 +82,7 @@ public class ItemService {
         itemDTO.setListedByName(sellerName);
         itemDTO.setStartingBidPrice(item.getStartingBidPrice());
         itemDTO.setAuction(auctionDTO);
+        
         return itemDTO;
     }
 
@@ -180,7 +184,14 @@ public class ItemService {
             List<ItemDTO> itemDTOs = new ArrayList<>();
 
             for (Item item : items) {
+                // Initialize images
+                item.getImageUrls().size();
+
                 try {
+                    logger.info("Processing item ID: {} - Starting auction data fetch", item.getId());
+                    logger.info("WebSocket connection status for auction service: {}",
+                        webSocketService.isConnected("auction") ? "Connected" : "Disconnected");
+
                     CompletableFuture<AuctionDTO> auctionFuture = webSocketService.sendRequest(
                         "auction",
                         "auction.getByItemId",
@@ -188,17 +199,35 @@ public class ItemService {
                         AuctionDTO.class
                     );
 
-                    AuctionDTO auctionDTO = auctionFuture.get(5, TimeUnit.SECONDS);
-                    String sellerName = fetchSellerName(item.getListedBy());
-                    ItemDTO itemDTO = mapToItemDTO(item, auctionDTO, sellerName);
-                    itemDTOs.add(itemDTO);
+                    try {
+                        AuctionDTO auctionDTO = auctionFuture.get(5, TimeUnit.SECONDS);
+                        logger.info("Item ID: {} - Auction data received: {}",
+                            item.getId(),
+                            auctionDTO != null ? "Success" : "Null");
+                        if (auctionDTO != null) {
+                            logger.info("Auction details for Item {}: Type={}, Status={}, Current Price={}",
+                                item.getId(),
+                                auctionDTO.getAuctionType(),
+                                auctionDTO.getStatus(),
+                                auctionDTO.getCurrentBidPrice());
+                        }
+
+                        String sellerName = fetchSellerName(item.getListedBy());
+                        ItemDTO itemDTO = mapToItemDTO(item, auctionDTO, sellerName);
+                        itemDTOs.add(itemDTO);
+                    } catch (TimeoutException e) {
+                        logger.error("Timeout waiting for auction data for item {}", item.getId(), e);
+                        ItemDTO itemDTO = mapToItemDTO(item, null, fetchSellerName(item.getListedBy()));
+                        itemDTOs.add(itemDTO);
+                    }
                 } catch (Exception e) {
-                    logger.error("Error fetching details for item ID: {}", item.getId(), e);
-                    // Optional: Include items with partial data
+                    logger.error("Error processing item {}: {}", item.getId(), e.getMessage());
+                    logger.error("Full error details:", e);
+                    ItemDTO itemDTO = mapToItemDTO(item, null, fetchSellerName(item.getListedBy()));
+                    itemDTOs.add(itemDTO);
                 }
             }
 
-            logger.info("Successfully processed {} ItemDTOs", itemDTOs.size());
             return itemDTOs;
         } catch (Exception e) {
             logger.error("Unexpected error in getAllItemsWithDetails", e);
@@ -213,16 +242,19 @@ public class ItemService {
         }
 
         Item item = itemOpt.get();
+        // Initialize images
+        item.getImageUrls().size();
+
         CompletableFuture<AuctionDTO> auctionFuture = webSocketService.sendRequest(
-            "auction", 
-            "auction.getByItemId", 
-            item.getId(), 
+            "auction",
+            "auction.getByItemId",
+            item.getId(),
             AuctionDTO.class
         );
 
         AuctionDTO auctionDTO = auctionFuture.get(5, TimeUnit.SECONDS);
         String sellerName = fetchSellerName(item.getListedBy());
-        
+
         return mapToItemDTO(item, auctionDTO, sellerName);
     }
 
@@ -250,6 +282,22 @@ public class ItemService {
 
         return itemDTOs;
     }
+    
+    @Transactional
+    public ItemDTO getItemWithoutAuctionDetails(Long id) throws Exception {
+        Optional<Item> itemOpt = getItemById(id);
+        if (itemOpt.isEmpty()) {
+            throw new Exception("Item not found.");
+        }
+
+        Item item = itemOpt.get();
+        // Force initialize lazy collection
+        item.getImageUrls().size();
+
+        String sellerName = fetchSellerName(item.getListedBy());
+        return mapToItemDTO(item, null, sellerName);
+    }
+
 
     @Transactional
     public List<String> uploadImages(Long id, MultipartFile[] imageFiles, Long userId) throws Exception {

@@ -24,7 +24,6 @@ import java.util.Map;
 @EnableWebSocket
 public class WebSocketConfig implements WebSocketConfigurer {
     private static final Logger logger = LoggerFactory.getLogger(WebSocketConfig.class);
-
     private final InternalWebSocketHandler internalWebSocketHandler;
 
     public WebSocketConfig(InternalWebSocketHandler internalWebSocketHandler) {
@@ -33,44 +32,39 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        WebSocketHandlerRegistration registration = registry.addHandler(internalWebSocketHandler, "/ws/internal")
-            .setAllowedOrigins("*");
-
-        // Add more explicit configuration
-        registration.addInterceptors(new HandshakeInterceptor() {
-            @Override
-            public boolean beforeHandshake(ServerHttpRequest request, 
-                                           ServerHttpResponse response, 
-                                           WebSocketHandler wsHandler, 
-                                           Map<String, Object> attributes) throws Exception {
-                if (request instanceof ServletServerHttpRequest) {
-                    ServletServerHttpRequest servletRequest = (ServletServerHttpRequest) request;
-                    
-                    String token = servletRequest.getServletRequest().getHeader("X-Internal-Token");
-                    logger.info("WebSocket Handshake Token: {}", token);
-                    
-                    boolean tokenValid = "auth-catalogue-internal-token".equals(token);
-                    
-                    if (tokenValid) {
-                        // Explicitly set WebSocket upgrade headers
-                        response.getHeaders().set("Upgrade", "websocket");
-                        response.getHeaders().set("Connection", "Upgrade");
+        registry.addHandler(internalWebSocketHandler, "/ws/internal")
+                .setAllowedOrigins("*")
+                .addInterceptors(new HandshakeInterceptor() {
+                    @Override
+                    public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler wsHandler, Map<String, Object> attributes) throws Exception {
+                        if (request instanceof ServletServerHttpRequest) {
+                            ServletServerHttpRequest servletRequest = (ServletServerHttpRequest) request;
+                            String token = servletRequest.getServletRequest().getHeader("X-Internal-Token");
+                            logger.info("WebSocket Handshake Token: {}", token);
+                            boolean tokenValid = "auth-catalogue-internal-token".equals(token) || "auction-catalogue-internal-token".equals(token);
+                            logger.info("Token validation result: {}", tokenValid);
+                            if (tokenValid) {
+                                // Identify the service based on the token
+                                String service = "unknown";
+                                if ("auth-catalogue-internal-token".equals(token)) {
+                                    service = "auth";
+                                } else if ("auction-catalogue-internal-token".equals(token)) {
+                                    service = "auction";
+                                }
+                                attributes.put("service", service);
+                            }
+                            return tokenValid;
+                        }
+                        return false;
                     }
-                    
-                    return tokenValid;
-                }
-                return false;
-            }
 
-            @Override
-            public void afterHandshake(ServerHttpRequest request, 
-                                       ServerHttpResponse response, 
-                                       WebSocketHandler wsHandler, 
-                                       Exception exception) {
-                if (exception != null) {
-                    logger.error("WebSocket Handshake failed", exception);
-                }
-            }
-        });
+                    @Override
+                    public void afterHandshake(ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler wsHandler, Exception exception) {
+                        if (exception != null) {
+                            logger.error("WebSocket Handshake failed", exception);
+                        }
+                    }
+                })
+                .setHandshakeHandler(new DefaultHandshakeHandler());
     }
 }

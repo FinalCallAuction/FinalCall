@@ -22,9 +22,10 @@ public class ItemService {
     public UserDTO getUserById(Long userId) {
         return webSocketService.sendRequest(
             "auth",
-            "GET_USER",
+            "user.getById",
             userId,
             UserDTO.class
         ).join();
     }
+
 }

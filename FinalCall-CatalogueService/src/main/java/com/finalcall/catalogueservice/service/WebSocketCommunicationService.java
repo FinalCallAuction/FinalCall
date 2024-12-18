@@ -1,8 +1,12 @@
 package com.finalcall.catalogueservice.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import jakarta.annotation.PostConstruct;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -10,11 +14,13 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.web.socket.*;
+
 import org.springframework.web.socket.client.WebSocketClient;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.net.URI;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
@@ -22,29 +28,39 @@ import java.util.concurrent.*;
 @Service
 public class WebSocketCommunicationService {
     private static final Logger logger = LoggerFactory.getLogger(WebSocketCommunicationService.class);
-
     private final WebSocketClient webSocketClient;
-    private final ObjectMapper objectMapper;
-
     private final Map<String, WebSocketSession> serviceSessions = new ConcurrentHashMap<>();
     private final Map<String, CompletableFuture<Object>> pendingRequests = new ConcurrentHashMap<>();
 
-    @Value("${websocket.service.tokens.auth:auth-catalogue-internal-token}")
-    private String authServiceToken;
-
-    @Value("${websocket.service.urls.auth:ws://localhost:8081/ws/internal}")
+    @Value("${websocket.service.urls.auth}")
     private String authServiceUrl;
 
-    @Value("${websocket.service.tokens.auction:auction-catalogue-internal-token}")
+    @Value("${websocket.service.urls.auction}")
+    private String auctionServiceUrl;
+
+    @Value("${websocket.service.tokens.auth}")
+    private String authServiceToken;
+
+    @Value("${websocket.service.tokens.auction}")
     private String auctionServiceToken;
 
-    @Value("${websocket.service.urls.auction:ws://localhost:8084/ws/internal}")
-    private String auctionServiceUrl;
+    @Autowired
+    private ObjectMapper objectMapper; // use the bean from JacksonConfig
 
     public WebSocketCommunicationService() {
         this.webSocketClient = new StandardWebSocketClient();
-        this.objectMapper = new ObjectMapper();
     }
+
+    @PostConstruct
+    public void init() {
+        logger.info("Initializing WebSocket Communication Service");
+        logger.info("Auth Service URL: {}", authServiceUrl);
+        logger.info("Auction Service URL: {}", auctionServiceUrl);
+        logger.info("Auth Service Token: {}", authServiceToken);
+        logger.info("Auction Service Token: {}", auctionServiceToken);
+        connectToServices();
+    }
+
 
     public void connectToServices() {
         connectToAuthService();
@@ -57,12 +73,7 @@ public class WebSocketCommunicationService {
                 URI uri = URI.create(authServiceUrl);
                 WebSocketHttpHeaders headers = new WebSocketHttpHeaders();
                 headers.add("X-Internal-Token", authServiceToken);
-                headers.add("Upgrade", "websocket");
-                headers.add("Connection", "Upgrade");
-
-                logger.info("WebSocket Connection Details:");
-                logger.info("URL: {}", uri);
-                logger.info("Token: {}", authServiceToken);
+                logger.info("Attempting WebSocket connection to Auth Service at: {}", uri);
 
                 WebSocketHandler handler = new TextWebSocketHandler() {
                     @Override
@@ -100,9 +111,6 @@ public class WebSocketCommunicationService {
                 }
             } catch (Exception e) {
                 logger.error("WebSocket Connection Error with Auth Service", e);
-                if (e.getCause() != null) {
-                    logger.error("Root Cause: {}", e.getCause().getMessage(), e.getCause());
-                }
             }
         });
     }
@@ -113,7 +121,6 @@ public class WebSocketCommunicationService {
                 URI uri = URI.create(auctionServiceUrl);
                 WebSocketHttpHeaders headers = new WebSocketHttpHeaders();
                 headers.add("X-Internal-Token", auctionServiceToken);
-
                 logger.info("Attempting WebSocket connection to Auction Service at: {}", uri);
 
                 WebSocketHandler handler = new TextWebSocketHandler() {
@@ -157,37 +164,40 @@ public class WebSocketCommunicationService {
     }
 
     /**
-     * Processes incoming WebSocket messages to complete pending requests.
+     * Processes incoming WebSocket messages and completes pending requests.
      *
      * @param payload The JSON payload received.
      * @param service The service identifier ("auth" or "auction").
      */
     private void processIncomingMessage(String payload, String service) {
         try {
+            logger.info("Received message from {} service: {}", service, payload);
             Map<String, Object> messageMap = objectMapper.readValue(payload, Map.class);
             String requestId = (String) messageMap.get("requestId");
             Object data = messageMap.get("data");
             String error = (String) messageMap.get("error");
 
             if (requestId == null) {
-                logger.warn("Received message without requestId from {} service", service);
+                logger.warn("Received message without requestId from {} service: {}", service, payload);
                 return;
             }
 
             CompletableFuture<Object> future = pendingRequests.remove(requestId);
             if (future == null) {
-                logger.warn("No pending request found for requestId: {}", requestId);
+                logger.warn("No pending request found for requestId: {} from service: {}", requestId, service);
                 return;
             }
 
             if (error != null) {
+                logger.error("Error response from {} service for request {}: {}", service, requestId, error);
                 future.completeExceptionally(new RuntimeException(error));
             } else {
+                logger.info("Successful response from {} service for request {}", service, requestId);
                 future.complete(data);
             }
-
         } catch (Exception e) {
-            logger.error("Error processing incoming WebSocket message from {} service: {}", service, e.getMessage(), e);
+            logger.error("Error processing incoming WebSocket message from {} service: {}", service, e.getMessage());
+            logger.error("Full error details:", e);
         }
     }
 
@@ -201,44 +211,43 @@ public class WebSocketCommunicationService {
      * @param <T>          The type parameter.
      * @return A CompletableFuture that will be completed with the response.
      */
-    public <T> CompletableFuture<T> sendRequest(
-            String service,
-            String type,
-            Object data,
-            Class<T> responseType
-    ) {
+    public <T> CompletableFuture<T> sendRequest(String service, String type, Object data, Class<T> responseType) {
         try {
             WebSocketSession session = serviceSessions.get(service);
+            logger.info("Attempting to send request to {} service. Session exists: {}, Session open: {}", 
+                service, 
+                session != null, 
+                session != null ? session.isOpen() : false);
+
             if (session == null || !session.isOpen()) {
+                logger.error("No active WebSocket connection for {} service", service);
                 CompletableFuture<T> failedFuture = new CompletableFuture<>();
-                failedFuture.completeExceptionally(new IllegalStateException("No active WebSocket connection for " + service));
+                failedFuture.completeExceptionally(
+                    new IllegalStateException("No active WebSocket connection for " + service)
+                );
                 return failedFuture;
             }
 
-            // Get the current user's access token from the security context
-            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-            String accessToken = null;
-            if (authentication instanceof JwtAuthenticationToken) {
-                Jwt jwt = ((JwtAuthenticationToken) authentication).getToken();
-                accessToken = jwt.getTokenValue();
-            }
-
             String requestId = UUID.randomUUID().toString();
-            Map<String, Object> request = Map.of(
-                    "requestId", requestId,
-                    "type", type,
-                    "data", data,
-                    "token", accessToken // Include access token if needed
-            );
+            Map<String, Object> request = new HashMap<>();
+            request.put("requestId", requestId);
+            request.put("type", type);
+            request.put("data", data);
 
             CompletableFuture<Object> future = new CompletableFuture<>();
             pendingRequests.put(requestId, future);
 
             String requestJson = objectMapper.writeValueAsString(request);
+            logger.info("Sending WebSocket request to {} service (ID: {}): {}", service, requestId, requestJson);
+            
             session.sendMessage(new TextMessage(requestJson));
-
-            return future.thenApply(response -> objectMapper.convertValue(response, responseType));
+            
+            return future.thenApply(response -> {
+                logger.info("Processing response for request {} from {} service", requestId, service);
+                return objectMapper.convertValue(response, responseType);
+            });
         } catch (Exception e) {
+            logger.error("Error sending WebSocket request to {} service", service, e);
             CompletableFuture<T> failedFuture = new CompletableFuture<>();
             failedFuture.completeExceptionally(e);
             return failedFuture;
