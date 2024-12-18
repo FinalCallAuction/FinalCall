@@ -1,5 +1,3 @@
-// src/main/java/com/finalcall/catalogueservice/dto/ItemDTO.java
-
 package com.finalcall.catalogueservice.dto;
 
 import java.util.List;
@@ -12,7 +10,7 @@ public class ItemDTO {
     private String keywords;
     private List<String> imageUrls;
     private Long listedBy;
-    private String listedByName; // New field for seller's name
+    private String listedByName; // Seller's name
     private Double startingBidPrice;
     private AuctionDTO auction;
 

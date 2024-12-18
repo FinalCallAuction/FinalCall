@@ -25,15 +25,22 @@ public class ConsolidatedWebSocketHandler implements WebSocketHandler {
     @Autowired
     private AuctionService auctionService;
 
+    @Autowired
+    private ObjectMapper sharedObjectMapper; // Injected ObjectMapper
+
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         String uri = Objects.requireNonNull(session.getUri()).toString();
         if (uri.contains("/ws/auctions/")) {
             Long auctionId = extractId(uri, "/ws/auctions/");
-            auctionSessions.computeIfAbsent(auctionId, k -> Collections.synchronizedSet(new HashSet<>())).add(session);
+            if (auctionId != null) {
+                auctionSessions.computeIfAbsent(auctionId, k -> Collections.synchronizedSet(new HashSet<>())).add(session);
+            }
         } else if (uri.contains("/ws/notifications/")) {
             Long userId = extractId(uri, "/ws/notifications/");
-            notificationSessions.computeIfAbsent(userId, k -> Collections.synchronizedSet(new HashSet<>())).add(session);
+            if (userId != null) {
+                notificationSessions.computeIfAbsent(userId, k -> Collections.synchronizedSet(new HashSet<>())).add(session);
+            }
         } else if (uri.endsWith("/ws/items")) {
             itemSessions.add(session);
         }
@@ -47,6 +54,7 @@ public class ConsolidatedWebSocketHandler implements WebSocketHandler {
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) {
         // Log error if needed
+        exception.printStackTrace();
     }
 
     @Override
@@ -122,18 +130,20 @@ public class ConsolidatedWebSocketHandler implements WebSocketHandler {
         message.put("data", payload);
 
         try {
-            String json = objectMapper.writeValueAsString(message);
+            String json = sharedObjectMapper.writeValueAsString(message);
             for (WebSocketSession session : sessions) {
                 if (session.isOpen()) {
                     try {
                         session.sendMessage(new TextMessage(json));
                     } catch (IOException e) {
                         // Log error and possibly close session if needed
+                        e.printStackTrace();
                     }
                 }
             }
         } catch (JsonProcessingException e) {
             // Handle JSON processing error
+            e.printStackTrace();
         }
     }
 }

@@ -68,9 +68,9 @@ public class ItemService {
     }
 
     private ItemDTO mapToItemDTO(Item item, AuctionDTO auctionDTO, String sellerName) {
-        logger.debug("Mapping item {} to DTO with auction data: {}", 
+        logger.debug("Mapping item {} to DTO with auction data: {}",
             item.getId(), auctionDTO != null ? "present" : "absent");
-        
+
         ItemDTO itemDTO = new ItemDTO();
         itemDTO.setId(item.getId());
         itemDTO.setRandomId(item.getRandomId());
@@ -82,7 +82,7 @@ public class ItemService {
         itemDTO.setListedByName(sellerName);
         itemDTO.setStartingBidPrice(item.getStartingBidPrice());
         itemDTO.setAuction(auctionDTO);
-        
+
         return itemDTO;
     }
 
@@ -117,7 +117,7 @@ public class ItemService {
         auctionDTO.setCurrentBidPrice(itemRequest.getStartingBid());
         auctionDTO.setAuctionEndTime(itemRequest.getAuctionEndTime());
         auctionDTO.setSellerId(userId);
-        auctionDTO.setStartTime(itemRequest.getAuctionStartTime() != null ? 
+        auctionDTO.setStartTime(itemRequest.getAuctionStartTime() != null ?
             itemRequest.getAuctionStartTime() : LocalDateTime.now());
 
         if ("DUTCH".equalsIgnoreCase(itemRequest.getAuctionType())) {
@@ -148,7 +148,6 @@ public class ItemService {
             }
         });
 
-
         String sellerName = fetchSellerName(userId);
         return mapToItemDTO(savedItem, auctionDTO, sellerName);
     }
@@ -156,9 +155,9 @@ public class ItemService {
     private String fetchSellerName(Long userId) {
         try {
             CompletableFuture<UserDTO> userFuture = webSocketService.sendRequest(
-                "auth", 
-                "user.getById", 
-                userId, 
+                "auth",
+                "user.getById",
+                userId,
                 UserDTO.class
             );
 
@@ -263,9 +262,9 @@ public class ItemService {
         for (Item item : items) {
             try {
                 CompletableFuture<AuctionDTO> auctionFuture = webSocketService.sendRequest(
-                    "auction", 
-                    "auction.getByItemId", 
-                    item.getId(), 
+                    "auction",
+                    "auction.getByItemId",
+                    item.getId(),
                     AuctionDTO.class
                 );
 
@@ -280,7 +279,7 @@ public class ItemService {
 
         return itemDTOs;
     }
-    
+
     @Transactional
     public ItemDTO getItemWithoutAuctionDetails(Long id) throws Exception {
         Optional<Item> itemOpt = getItemById(id);
@@ -322,7 +321,7 @@ public class ItemService {
         }
 
         int existingImageCount = item.getImageUrls().size();
-        File[] existingFiles = itemImageDir.listFiles((dir, name) -> 
+        File[] existingFiles = itemImageDir.listFiles((dir, name) ->
             name.endsWith(".png") || name.endsWith(".jpg") || name.endsWith(".jpeg"));
         if (existingFiles != null) {
             existingImageCount = existingFiles.length;

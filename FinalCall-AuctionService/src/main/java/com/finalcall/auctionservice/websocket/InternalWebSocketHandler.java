@@ -16,19 +16,18 @@ import java.util.Optional;
 @Component
 public class InternalWebSocketHandler implements WebSocketHandler {
     private final AuctionService auctionService;
+    private final ObjectMapper objectMapper;
 
-    public InternalWebSocketHandler(AuctionService auctionService) {
+    @Autowired
+    public InternalWebSocketHandler(AuctionService auctionService, ObjectMapper objectMapper) {
         this.auctionService = auctionService;
+        this.objectMapper = objectMapper;
     }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         // Connection established
     }
-    
-    @Autowired
-    private ObjectMapper objectMapper;
-
 
     @Override
     public void handleMessage(WebSocketSession session, WebSocketMessage<?> message) throws Exception {
@@ -41,24 +40,23 @@ public class InternalWebSocketHandler implements WebSocketHandler {
         response.put("requestId", requestId);
 
         try {
-        	switch (type) {
-            case "auction.create":
-                AuctionDTO newAuction = objectMapper.convertValue(data, AuctionDTO.class);
-                Auction created = auctionService.createAuction(newAuction);
-                response.put("data", auctionService.mapToDTO(created));
-                break;
+            switch (type) {
+                case "auction.create":
+                    AuctionDTO newAuction = objectMapper.convertValue(data, AuctionDTO.class);
+                    Auction created = auctionService.createAuction(newAuction);
+                    response.put("data", auctionService.mapToDTO(created));
+                    break;
 
-            case "auction.getByItemId":
-                Long itemId = Long.valueOf(data.toString());
-                Optional<Auction> optAuc = auctionService.findByItemId(itemId);
-                AuctionDTO aucDTO = optAuc.map(a -> auctionService.mapToDTO(a)).orElse(null);
-                response.put("data", aucDTO);
-                break;
+                case "auction.getByItemId":
+                    Long itemId = Long.valueOf(data.toString());
+                    Optional<Auction> optAuc = auctionService.findByItemId(itemId);
+                    AuctionDTO aucDTO = optAuc.map(a -> auctionService.mapToDTO(a)).orElse(null);
+                    response.put("data", aucDTO);
+                    break;
 
-            default:
-                response.put("error", "Unknown request type: " + type);
-        }
-
+                default:
+                    response.put("error", "Unknown request type: " + type);
+            }
 
         } catch (Exception e) {
             response.put("error", e.getMessage());
@@ -70,6 +68,7 @@ public class InternalWebSocketHandler implements WebSocketHandler {
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) {
         // Handle transport error
+        exception.printStackTrace();
     }
 
     @Override

@@ -79,42 +79,46 @@ const ItemDetail = () => {
       fetchItemDetails();
     }, [fetchItemDetails]);
 
-    useEffect(() => {
-      if (state.item?.auction?.id) {
-        const ws = new WebSocket(
-          `ws://localhost:8084/ws/auctions/${state.item.auction.id}`
-        );
+	useEffect(() => {
+	  if (state.item?.auction?.id) {
+	    const ws = new WebSocket(
+	      `ws://localhost:8084/ws/auctions/${state.item.auction.id}`
+	    );
 
-        ws.onopen = () => {
-          console.log("WebSocket connected for auction:", state.item.auction.id);
-        };
+	    ws.onopen = () => {
+	      console.log("WebSocket connected for auction:", state.item.auction.id);
+	    };
 
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            if (data.type === "AUCTION_UPDATE") {
-              setState((prev) => ({
-                ...prev,
-                item: { ...prev.item, auction: data.auction },
-                biddingHistory: data.biddingHistory,
-              }));
-            }
-          } catch (error) {
-            console.error("Error parsing WebSocket message:", error);
-          }
-        };
+	    ws.onmessage = (event) => {
+	      try {
+	        const data = JSON.parse(event.data);
+	        if (data.type === "AUCTION_UPDATE") {
+	          setState((prev) => ({
+	            ...prev,
+	            item: { ...prev.item, auction: data.data.auction },
+	            biddingHistory: data.data.biddingHistory,
+	          }));
+	        }
+	      } catch (error) {
+	        console.error("Error parsing WebSocket message:", error);
+	      }
+	    };
 
-        ws.onclose = () => {
-          console.log("WebSocket connection closed");
-        };
+	    ws.onerror = (error) => {
+	      console.error("WebSocket error:", error);
+	    };
 
-        return () => {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.close();
-          }
-        };
-      }
-    }, [state.item?.auction?.id]);
+	    ws.onclose = () => {
+	      console.log("WebSocket connection closed");
+	    };
+
+	    return () => {
+	      if (ws.readyState === WebSocket.OPEN) {
+	        ws.close();
+	      }
+	    };
+	  }
+	}, [state.item?.auction?.id]);
 	
   // Update the bid handling function:
   const handleBid = async (amount) => {
@@ -143,20 +147,52 @@ const ItemDetail = () => {
         }
       );
 
-      if (response.ok) {
+      // First check if the response is ok
+      if (!response.ok) {
+        let errorMessage = 'Failed to place bid';
+        try {
+          const errorData = await response.text();
+          errorMessage = errorData || errorMessage;
+        } catch (e) {
+          console.error('Error parsing error response:', e);
+        }
+        setState(prev => ({
+          ...prev,
+          bidError: errorMessage,
+          bidSuccess: ''
+        }));
+        return;
+      }
+
+      // Try to parse the successful response
+      try {
+        const data = await response.json();
+        setState(prev => ({
+          ...prev,
+          bidAmount: '',
+          bidError: '',
+          bidSuccess: data.message || 'Bid placed successfully!'
+        }));
+
+        // Handle notifications if they exist
+        if (data.notifications && Array.isArray(data.notifications)) {
+          data.notifications.forEach(notification => {
+            if (notification.type) {
+              // Dispatch notification event
+              const event = new CustomEvent(notification.type, {
+                detail: notification
+              });
+              window.dispatchEvent(event);
+            }
+          });
+        }
+      } catch (e) {
+        console.error('Error parsing success response:', e);
         setState(prev => ({
           ...prev,
           bidAmount: '',
           bidError: '',
           bidSuccess: 'Bid placed successfully!'
-        }));
-        // Refresh will happen via WebSocket
-      } else {
-        const errorData = await response.text();
-        setState(prev => ({
-          ...prev,
-          bidError: errorData,
-          bidSuccess: ''
         }));
       }
     } catch (err) {

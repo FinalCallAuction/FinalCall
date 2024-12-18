@@ -16,21 +16,24 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .cors(Customizer.withDefaults())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/ws/**").permitAll()
-                .requestMatchers("/ws/internal").permitAll()
-                .requestMatchers("/sockjs-node/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/ws/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/ws/auctions/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/ws/internal/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/auctions/item/*").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/auctions/*/bids").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/auctions/**").permitAll()
-                .requestMatchers("/api/auctions/*/bid").hasAuthority("SCOPE_write")
-                .requestMatchers("/api/auctions/*/decrement").hasAuthority("SCOPE_write")
-                .requestMatchers("/api/auctions/create").hasAuthority("SCOPE_write")
+                .requestMatchers(HttpMethod.POST, "/api/auctions/*/bid").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/auctions/*/decrement").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/auctions/create").authenticated()
                 .requestMatchers("/api/notifications/**").authenticated()
                 .anyRequest().permitAll()
             )
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
+            .oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(Customizer.withDefaults())
+            );
+
         return http.build();
     }
 
@@ -40,7 +43,8 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setExposedHeaders(Arrays.asList("Access-Control-Allow-Origin", "Access-Control-Allow-Credentials", "Authorization"));
+        configuration.setExposedHeaders(Arrays.asList("Access-Control-Allow-Origin", 
+            "Access-Control-Allow-Credentials", "Authorization"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

@@ -5,6 +5,7 @@ import com.finalcall.catalogueservice.dto.ItemDTO;
 import com.finalcall.catalogueservice.service.ItemService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.*;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
@@ -18,6 +19,7 @@ public class InternalWebSocketHandler extends TextWebSocketHandler {
     private final ObjectMapper objectMapper;
     private final ItemService itemService;
 
+    @Autowired
     public InternalWebSocketHandler(ObjectMapper objectMapper, ItemService itemService) {
         this.objectMapper = objectMapper;
         this.itemService = itemService;
@@ -31,23 +33,20 @@ public class InternalWebSocketHandler extends TextWebSocketHandler {
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
         try {
-            Map<String, Object> payload = objectMapper.readValue(message.getPayload(), Map.class);
-            String type = (String) payload.get("type");
-            String requestId = (String) payload.get("requestId");
-            Object data = payload.get("data");
-
-            Object responseData = handleInternalRequest(type, data);
+            Map<String, Object> request = objectMapper.readValue(message.getPayload(), Map.class);
+            String type = (String) request.get("type");
+            String requestId = (String) request.get("requestId");
+            Object data = request.get("data");
 
             Map<String, Object> response = Map.of(
                 "requestId", requestId,
-                "data", responseData
+                "data", handleInternalRequest(type, data)
             );
 
             session.sendMessage(new TextMessage(objectMapper.writeValueAsString(response)));
         } catch (Exception e) {
             logger.error("Error processing WebSocket message", e);
-
-            // If an error occurs, send back an error response
+            // Send back an error response
             String errorMsg = e.getMessage();
             Map<String, Object> errorResponse = Map.of(
                 "error", errorMsg

@@ -1,8 +1,9 @@
-// src/main/java/com/finalcall/catalogueservice/dto/AuctionDTO.java
 package com.finalcall.catalogueservice.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.finalcall.catalogueservice.entity.AuctionType;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -19,7 +20,7 @@ public class AuctionDTO {
     private LocalDateTime startTime;
     private Double priceDecrement;
     private Double minimumPrice;
-    private Long currentBidderId; // Add this field
+    private Long currentBidderId;
     private List<String> imageUrls;
     private String status;
     private ItemDTO item;
@@ -27,7 +28,31 @@ public class AuctionDTO {
     // Constructors
     public AuctionDTO() {}
 
+    // Parameterized constructor
+    public AuctionDTO(Long id, Long itemId, String auctionType, Double startingBidPrice,
+                     Double currentBidPrice, LocalDateTime auctionEndTime, Long sellerId,
+                     String sellerName, LocalDateTime startTime, Double priceDecrement,
+                     Double minimumPrice, Long currentBidderId, List<String> imageUrls,
+                     String status, ItemDTO item) {
+        this.id = id;
+        this.itemId = itemId;
+        this.auctionType = auctionType;
+        this.startingBidPrice = startingBidPrice;
+        this.currentBidPrice = currentBidPrice;
+        this.auctionEndTime = auctionEndTime;
+        this.sellerId = sellerId;
+        this.sellerName = sellerName;
+        this.startTime = startTime;
+        this.priceDecrement = priceDecrement;
+        this.minimumPrice = minimumPrice;
+        this.currentBidderId = currentBidderId;
+        this.imageUrls = imageUrls;
+        this.status = status;
+        this.item = item;
+    }
+
     // Getters and Setters
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -72,4 +97,15 @@ public class AuctionDTO {
 
     public ItemDTO getItem() { return item; }
     public void setItem(ItemDTO item) { this.item = item; }
+
+    /**
+     * Computes the remaining time in seconds until the auction ends.
+     * If the auction has already ended, returns 0.
+     */
+    @JsonProperty("timeLeft")
+    public long getTimeLeft() {
+        if (auctionEndTime == null) return 0;
+        Duration duration = Duration.between(LocalDateTime.now(), auctionEndTime);
+        return duration.isNegative() ? 0 : duration.getSeconds();
+    }
 }

@@ -30,9 +30,9 @@ public class MicroserviceWebSocketService {
     @Value("${websocket.service.tokens.auction}")
     private String auctionServiceToken;
 
-    public MicroserviceWebSocketService() {
+    public MicroserviceWebSocketService(ObjectMapper objectMapper) {
         this.webSocketClient = new StandardWebSocketClient();
-        this.objectMapper = new ObjectMapper();
+        this.objectMapper = objectMapper;
         this.sessions = new ConcurrentHashMap<>();
         this.pendingRequests = new ConcurrentHashMap<>();
     }
@@ -96,11 +96,14 @@ public class MicroserviceWebSocketService {
                 @Override
                 public void handleTransportError(WebSocketSession session, Throwable exception) {
                     sessions.remove(serviceName);
+                    System.err.println("WebSocket transport error for service: " + serviceName);
+                    exception.printStackTrace();
                 }
 
                 @Override
                 public void afterConnectionClosed(WebSocketSession session, CloseStatus closeStatus) {
                     sessions.remove(serviceName);
+                    System.out.println("WebSocket connection to " + serviceName + " closed");
                 }
 
             }, headers, URI.create(url)).get();
