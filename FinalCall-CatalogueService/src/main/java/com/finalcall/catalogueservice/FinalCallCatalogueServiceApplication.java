@@ -6,7 +6,6 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
-@EnableFeignClients // Enable Feign clients
 @EnableScheduling
 public class FinalCallCatalogueServiceApplication {
     public static void main(String[] args) {

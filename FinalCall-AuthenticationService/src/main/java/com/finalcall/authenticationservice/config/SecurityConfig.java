@@ -31,14 +31,14 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .cors(Customizer.withDefaults())
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers("/ws/**").permitAll()  // Explicitly permit all WebSocket endpoints
                 .requestMatchers("/api/auth/register").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/users/**").permitAll()  // Allow public access to user profiles
-                .requestMatchers(HttpMethod.PUT, "/api/users/**").authenticated()  // Require auth for updates
+                .requestMatchers(HttpMethod.GET, "/api/users/**").permitAll()
+                .requestMatchers(HttpMethod.PUT, "/api/users/**").authenticated()
                 .requestMatchers("/oauth2/**").permitAll()
                 .anyRequest().authenticated()
             )
-            .formLogin(Customizer.withDefaults())
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt());
+            .formLogin(Customizer.withDefaults());
 
         return http.build();
     }

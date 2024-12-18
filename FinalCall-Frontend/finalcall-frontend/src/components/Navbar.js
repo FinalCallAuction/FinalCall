@@ -1,6 +1,9 @@
+// src/components/Navbar.js
+
 import React, { useContext } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import NotificationBell from './NotificationBell';
 
 const Navbar = () => {
   const { user, logout } = useContext(AuthContext);
@@ -21,14 +24,14 @@ const Navbar = () => {
       <div className="flex items-center space-x-4">
         {user && (
           <>
-		  {/* Add this new link */}
-		            <Link to="/my-bids" className="hover:underline">
-		              My Bids
-		            </Link>
-		            <Link to="/create-item" className="hover:underline">
-		              List Item
-		            </Link>
-		          </>
+            <Link to="/my-bids" className="hover:underline">
+              My Bids
+            </Link>
+            <Link to="/create-item" className="hover:underline">
+              List Item
+            </Link>
+            <NotificationBell />
+          </>
         )}
         {!user ? (
           <>
@@ -41,12 +44,12 @@ const Navbar = () => {
           </>
         ) : (
           <>
-		  <Link 
-		    to={`/profile/${user.id}`} 
-		    className="hover:underline cursor-pointer"
-		  >
-		    Hello, {displayName}
-		  </Link>
+            <Link
+              to={`/profile/${user.id}`}
+              className="hover:underline cursor-pointer"
+            >
+              Hello, {displayName}
+            </Link>
             <button
               onClick={handleLogout}
               className="bg-red-500 px-3 py-1 rounded hover:bg-red-600"

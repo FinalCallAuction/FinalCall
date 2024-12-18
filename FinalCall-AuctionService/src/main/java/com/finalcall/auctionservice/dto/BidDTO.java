@@ -8,7 +8,9 @@ public class BidDTO {
     private Long bidderId;
     private String bidderUsername;
     private LocalDateTime timestamp;
-    private AuctionDTO auction; // Add this field
+    private AuctionDTO auction;
+    private String type; // "BID" or "PRICE_CHANGE"
+    private Double previousAmount; // For showing price changes in Dutch auctions
 
     public BidDTO() {
     }
@@ -21,7 +23,7 @@ public class BidDTO {
         this.timestamp = timestamp;
     }
 
-    // Existing getters remain the same
+    // Getters and Setters
     public Long getId() {
         return id;
     }
@@ -42,7 +44,6 @@ public class BidDTO {
         return timestamp;
     }
 
-    // Add setters for all fields
     public void setId(Long id) {
         this.id = id;
     }
@@ -63,12 +64,27 @@ public class BidDTO {
         this.timestamp = timestamp;
     }
 
-    // Setter and getter for auction
     public void setAuction(AuctionDTO auction) {
         this.auction = auction;
     }
 
     public AuctionDTO getAuction() {
         return auction;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public Double getPreviousAmount() {
+        return previousAmount;
+    }
+
+    public void setPreviousAmount(Double previousAmount) {
+        this.previousAmount = previousAmount;
     }
 }

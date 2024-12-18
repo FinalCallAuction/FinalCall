@@ -14,6 +14,7 @@ public class AuctionDTO {
     private Double currentBidPrice;
     private LocalDateTime auctionEndTime;
     private Long sellerId;
+    private String sellerName; // New Field
     private LocalDateTime startTime;
     private Double priceDecrement;
     private Double minimumPrice;
@@ -139,5 +140,13 @@ public class AuctionDTO {
 
     public ItemDTO getItem() {
         return item;
+    }
+    
+    public String getSellerName() {
+        return sellerName;
+    }
+
+    public void setSellerName(String sellerName) {
+        this.sellerName = sellerName;
     }
 }

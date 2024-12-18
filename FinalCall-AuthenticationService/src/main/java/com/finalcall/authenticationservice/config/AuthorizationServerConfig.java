@@ -52,8 +52,9 @@ public class AuthorizationServerConfig {
     @Bean
     public AuthorizationServerSettings authorizationServerSettings() {
         return AuthorizationServerSettings.builder()
-                .issuer("http://localhost:8081") // Ensure this matches your setup
-                .build();
+            .issuer("http://localhost:8081")
+            .jwkSetEndpoint("/.well-known/jwks.json")
+            .build();
     }
 
     @Bean

@@ -1,6 +1,6 @@
 // src/components/ItemsPage.js
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useContext } from "react";
 import { Link } from 'react-router-dom';
 import CountdownTimer from './CountdownTimer';
 
@@ -8,83 +8,137 @@ const ItemsPage = () => {
   const [items, setItems] = useState([]);
   const [bidCounts, setBidCounts] = useState({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 9; // Fixed items per page
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
+  const itemsPerPage = 9;
 
-  useEffect(() => {
-    const fetchItems = async () => {
-      try {
-        const response = await fetch('http://localhost:8082/api/items', {
-          method: 'GET',
-          credentials: 'include', // Include cookies if needed
+  const fetchItems = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("http://localhost:8082/api/items", {
+        method: "GET",
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+
+      console.log('Fetch Items Response:', response); // Added detailed logging
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Fetched Items Data:', data); // Log fetched data
+        
+        setItems(data);
+        setError("");
+
+        // Fetch bid counts for each auction
+        const bidCountPromises = data.map((item) => {
+          if (item.auction && item.auction.id) {
+            return fetch(
+              `http://localhost:8084/api/auctions/${item.auction.id}/bids`,
+              {
+                method: "GET",
+              }
+            )
+              .then((res) => (res.ok ? res.json() : []))
+              .then((bids) => ({ itemId: item.id, count: bids.length }))
+              .catch(() => ({ itemId: item.id, count: 0 }));
+          }
+          return Promise.resolve({ itemId: item.id, count: 0 });
         });
 
-        if (response.ok) {
-          const data = await response.json();
-          setItems(data);
-          setError('');
-
-          // Fetch bid counts for each auction
-          const bidCountPromises = data.map(item => {
-            // Ensure that auction and auction.id exist
-            if (item.auction && item.auction.id) {
-              return fetch(`http://localhost:8084/api/auctions/${item.auction.id}/bids`, {
-                method: 'GET',
-                credentials: 'include', // Include cookies if needed
-              })
-                .then(res => {
-                  if (res.ok) return res.json();
-                  else return [];
-                })
-                .catch(err => {
-                  console.error(`Error fetching bids for auction ID ${item.auction.id}:`, err);
-                  return [];
-                });
-            } else {
-              return Promise.resolve([]);
-            }
-          });
-
-          const bidCountData = await Promise.all(bidCountPromises);
-
-          const countMap = {};
-          bidCountData.forEach((bids, index) => {
-            countMap[data[index].id] = bids.length;
-          });
-
-          setBidCounts(countMap);
-        } else {
-          const errorMsg = await response.text();
-          setError(`Failed to fetch items: ${errorMsg}`);
-          setItems([]);
-        }
-      } catch (err) {
-        console.error('Error fetching items:', err);
-        setError('An unexpected error occurred while fetching items.');
+        const bidCountResults = await Promise.all(bidCountPromises);
+        const countMap = {};
+        bidCountResults.forEach((result) => {
+          countMap[result.itemId] = result.count;
+        });
+        setBidCounts(countMap);
+      } else {
+        // More detailed error handling
+        const errorText = await response.text();
+        console.error('Fetch Items Error Response:', errorText);
+        setError(`Failed to fetch items: ${errorText}`);
         setItems([]);
-      } finally {
-        setLoading(false);
       }
-    };
-
-    fetchItems();
+    } catch (err) {
+      console.error("Detailed Error Fetching Items:", err);
+      setError(err.message || "An unexpected error occurred while fetching items.");
+      setItems([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // Calculate current items for pagination
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = items.slice(indexOfFirstItem, indexOfLastItem);
+  useEffect(() => {
+    fetchItems();
+  }, [fetchItems]);
 
-  // Calculate total pages
-  const totalPages = Math.ceil(items.length / itemsPerPage);
+  useEffect(() => {
+      const ws = new WebSocket("ws://localhost:8084/ws/items");
+
+      ws.onopen = () => {
+        console.log("Connected to items WebSocket");
+      };
+
+      ws.onmessage = (event) => {
+		console.log("Received WebSocket message:", event.data);
+        try {
+          const data = JSON.parse(event.data);
+
+          if (data.type === "NEW_AUCTION") {
+            // data.data is the auctionDTO
+            const auctionDTO = data.data;
+            const newItem = auctionDTO.item; 
+            // Attach the auction info to the item object
+            newItem.auction = auctionDTO;
+
+            setItems((prevItems) => [newItem, ...prevItems]);
+            setBidCounts((prevCounts) => ({
+              ...prevCounts,
+              [newItem.id]: 0,
+            }));
+          } else if (data.type === "AUCTION_UPDATE") {
+            // ... (existing code)
+          }
+        } catch (error) {
+          console.error("Error handling WebSocket message:", error);
+        }
+      };
+
+
+    ws.onclose = () => {
+      console.log("Items WebSocket connection closed");
+    };
+
+    return () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
+    };
+  }, [setItems, setBidCounts, fetchItems]);
+  
+  useEffect(() => {
+    const refreshHandler = () => {
+      fetchItems(); // Re-fetch items from catalogue-service
+    };
+
+    window.addEventListener('refreshItems', refreshHandler);
+    return () => window.removeEventListener('refreshItems', refreshHandler);
+  }, [fetchItems]);
+
 
   // Filter items based on search term
-  const filteredItems = currentItems.filter(item =>
+  const filteredItems = items.filter((item) =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Calculate pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = filteredItems.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
+  
   // Render loading state with skeleton loaders
   if (loading) {
     return (

@@ -1,15 +1,16 @@
 package com.finalcall.auctionservice.service;
 
-import com.finalcall.auctionservice.client.CatalogueServiceClient;
-import com.finalcall.auctionservice.client.AuthenticationServiceClient;
 import com.finalcall.auctionservice.dto.*;
 import com.finalcall.auctionservice.entity.*;
-import com.finalcall.auctionservice.event.AuctionUpdatedEvent;
 import com.finalcall.auctionservice.exception.AuctionNotActiveException;
 import com.finalcall.auctionservice.exception.AuctionNotFoundException;
 import com.finalcall.auctionservice.exception.InvalidBidException;
+import com.finalcall.auctionservice.exception.InvalidDecrementException;
 import com.finalcall.auctionservice.repository.AuctionRepository;
 import com.finalcall.auctionservice.repository.BidRepository;
+import com.finalcall.auctionservice.event.AuctionEvents.AuctionUpdatedEvent;
+import com.finalcall.auctionservice.event.AuctionEvents.NotificationEvent;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
 
 @Service
 public class AuctionService {
+
     @Autowired
     private AuctionRepository auctionRepository;
 
@@ -29,62 +31,52 @@ public class AuctionService {
     private BidRepository bidRepository;
 
     @Autowired
-    private CatalogueServiceClient catalogueServiceClient;
-
-    @Autowired
-    private AuthenticationServiceClient authenticationServiceClient;
+    private ItemService itemService;
 
     @Autowired
     private ApplicationEventPublisher eventPublisher;
 
-    /**
-     * Creates a new auction based on the provided AuctionDTO.
-     *
-     * @param auctionDTO Details of the auction.
-     * @return The created Auction entity.
-     */
+    @Autowired
+    private WebSocketBroadcastService webSocketBroadcastService;
+
     @Transactional
     public Auction createAuction(AuctionDTO auctionDTO) {
+        // Verify item exists first
+        ItemDTO item = itemService.getItemById(auctionDTO.getItemId());
+        if (item == null) {
+            throw new IllegalArgumentException("Item not found");
+        }
+
         Auction auction = new Auction();
         auction.setItemId(auctionDTO.getItemId());
         auction.setAuctionType(auctionDTO.getAuctionType());
         auction.setStartingBidPrice(auctionDTO.getStartingBidPrice());
-
-        // Initialize currentBidPrice based on auction type
-        if (auctionDTO.getAuctionType() == AuctionType.FORWARD) {
-            auction.setCurrentBidPrice(auctionDTO.getStartingBidPrice());
-            auction.setAuctionEndTime(auctionDTO.getAuctionEndTime());
-        } else if (auctionDTO.getAuctionType() == AuctionType.DUTCH) {
-            auction.setCurrentBidPrice(auctionDTO.getStartingBidPrice());
-
-            // Set price decrement and minimum price for Dutch auctions
-            auction.setPriceDecrement(auctionDTO.getPriceDecrement());
-            auction.setMinimumPrice(auctionDTO.getMinimumPrice());
-
-            // No auctionEndTime for Dutch auctions
-            auction.setAuctionEndTime(null);
-        }
-
+        auction.setCurrentBidPrice(auctionDTO.getStartingBidPrice());
+        auction.setAuctionEndTime(auctionDTO.getAuctionEndTime());
         auction.setSellerId(auctionDTO.getSellerId());
-        auction.setStartTime(auctionDTO.getStartTime());
+        auction.setStartTime(LocalDateTime.now());
         auction.setStatus(AuctionStatus.ACTIVE);
 
-        // Save auction
-        Auction savedAuction = auctionRepository.save(auction);
+        if (auctionDTO.getAuctionType() == AuctionType.DUTCH) {
+            auction.setMinimumPrice(auctionDTO.getMinimumPrice());
+        }
 
-        // Publish the event
-        eventPublisher.publishEvent(new AuctionUpdatedEvent(this, savedAuction));
+        Auction saved = auctionRepository.save(auction);
 
-        return savedAuction;
+        // Prepare the response DTO
+        AuctionDTO responseDTO = mapToDTO(saved);
+        responseDTO.setItem(item);
+
+        // Get seller information
+        UserDTO seller = itemService.getUserById(saved.getSellerId());
+        responseDTO.setSellerName(seller.getUsername());
+
+        // Broadcast the new auction
+        webSocketBroadcastService.broadcastNewAuction(responseDTO);
+
+        return saved;
     }
 
-    /**
-     * Places a bid on an auction.
-     *
-     * @param auctionId  The ID of the auction.
-     * @param bidRequest The bid details.
-     * @return BidResponse indicating the result.
-     */
     @Transactional
     public BidResponse placeBid(Long auctionId, BidRequest bidRequest) {
         Auction auction = auctionRepository.findById(auctionId)
@@ -96,78 +88,109 @@ public class AuctionService {
         }
 
         // Check if auction has ended
-        if (LocalDateTime.now().isAfter(auction.getAuctionEndTime())) {
+        if (auction.getAuctionEndTime() != null && LocalDateTime.now().isAfter(auction.getAuctionEndTime())) {
             auction.setStatus(AuctionStatus.ENDED);
             auctionRepository.save(auction);
             throw new AuctionNotActiveException("This auction has ended");
         }
 
+        BidResponse response;
         if (auction.getAuctionType() == AuctionType.FORWARD) {
-            return handleForwardAuctionBid(auction, bidRequest);
+            response = handleForwardAuctionBid(auction, bidRequest);
         } else if (auction.getAuctionType() == AuctionType.DUTCH) {
-            return handleDutchAuctionBid(auction, bidRequest);
+            response = handleDutchAuctionBid(auction, bidRequest);
+        } else {
+            throw new UnsupportedOperationException("Unsupported auction type");
         }
 
-        throw new UnsupportedOperationException("Unsupported auction type");
+        // After successful bid placement, broadcast the update
+        AuctionDTO updatedAuction = mapToDTO(auction);
+        try {
+            ItemDTO itemDTO = itemService.getItemById(auction.getItemId());
+            updatedAuction.setItem(itemDTO);
+        } catch (Exception e) {
+            // If item fetch fails, proceed with what we have
+        }
+
+        List<BidDTO> biddingHistory = getBidsForAuction(auctionId);
+        webSocketBroadcastService.broadcastAuctionUpdate(auctionId, updatedAuction, biddingHistory);
+
+        return response;
     }
 
-    /**
-     * Handles bid placement for forward auctions.
-     */
     private BidResponse handleForwardAuctionBid(Auction auction, BidRequest bidRequest) {
-        // Validate bid amount
         if (bidRequest.getBidAmount() <= auction.getCurrentBidPrice()) {
             throw new InvalidBidException("Bid must be higher than current bid of $" + 
-                auction.getCurrentBidPrice());
+                    auction.getCurrentBidPrice());
         }
 
-        // Update auction
+        ItemDTO item = itemService.getItemById(auction.getItemId());
+        UserDTO bidder = itemService.getUserById(bidRequest.getBidderId());
+
+        BidResponse bidResponse = new BidResponse("Bid placed successfully", bidRequest.getBidAmount());
+
+        // Notify previous highest bidder if exists
+        if (auction.getCurrentBidderId() != null && !auction.getCurrentBidderId().equals(bidRequest.getBidderId())) {
+            NotificationDTO outbidNotification = new NotificationDTO(
+                String.format("You have been outbid on %s. Current bid is $%.2f", item.getName(), bidRequest.getBidAmount()),
+                "OUTBID"
+            );
+            outbidNotification.setLink("/my-bids");
+            eventPublisher.publishEvent(new NotificationEvent(this, auction.getCurrentBidderId(), outbidNotification));
+            bidResponse.addNotification(outbidNotification);
+        }
+
+        // Notify seller of new bid
+        NotificationDTO newBidNotification = new NotificationDTO(
+            String.format("New bid of $%.2f placed on your item %s", bidRequest.getBidAmount(), item.getName()),
+            "NEW_BID"
+        );
+        newBidNotification.setLink("/items");
+        eventPublisher.publishEvent(new NotificationEvent(this, auction.getSellerId(), newBidNotification));
+        bidResponse.addNotification(newBidNotification);
+
+        // Update auction and save bid
         auction.setCurrentBidPrice(bidRequest.getBidAmount());
         auction.setCurrentBidderId(bidRequest.getBidderId());
-        
-        // Save bid
         Bid bid = new Bid(bidRequest.getBidAmount(), auction.getId(), bidRequest.getBidderId());
         bidRepository.save(bid);
-        
-        // Save auction
         auctionRepository.save(auction);
 
-        // Publish event
-        eventPublisher.publishEvent(new AuctionUpdatedEvent(this, auction));
-
-        return new BidResponse("Bid placed successfully", auction.getCurrentBidPrice());
+        return bidResponse;
     }
 
-    /**
-     * Handles bid placement for Dutch auctions.
-     */
     private BidResponse handleDutchAuctionBid(Auction auction, BidRequest bidRequest) {
-        // For Dutch auctions, the bid must equal the current price
-        if (bidRequest.getBidAmount().compareTo(auction.getCurrentBidPrice()) != 0) {
-            throw new InvalidBidException("For Dutch auctions, bid must equal current price of $" + 
-                auction.getCurrentBidPrice());
+        if (!bidRequest.getBidAmount().equals(auction.getCurrentBidPrice())) {
+            throw new InvalidBidException("For Dutch auctions, bid must equal current price of $" +
+                    auction.getCurrentBidPrice());
         }
 
-        // End the auction immediately as Dutch auctions end on first valid bid
+        ItemDTO item = itemService.getItemById(auction.getItemId());
+        UserDTO bidder = itemService.getUserById(bidRequest.getBidderId());
+
+        BidResponse bidResponse = new BidResponse("Dutch auction won", bidRequest.getBidAmount());
+
+        // Notify seller of sale
+        NotificationDTO sellerNotification = new NotificationDTO(
+            String.format("Item %s sold at $%.2f", item.getName(), bidRequest.getBidAmount()),
+            "DUTCH_AUCTION_SOLD"
+        );
+        sellerNotification.setLink("/profile");
+        eventPublisher.publishEvent(new NotificationEvent(this, auction.getSellerId(), sellerNotification));
+        bidResponse.addNotification(sellerNotification);
+
+        // Save final bid and end auction
+        Bid bid = new Bid(bidRequest.getBidAmount(), auction.getId(), bidRequest.getBidderId());
+        bid.setTimestamp(LocalDateTime.now());
+        bidRepository.save(bid);
+
         auction.setStatus(AuctionStatus.ENDED);
         auction.setCurrentBidderId(bidRequest.getBidderId());
-        
-        // Save bid
-        Bid bid = new Bid(bidRequest.getBidAmount(), auction.getId(), bidRequest.getBidderId());
-        bidRepository.save(bid);
-        
-        // Save auction
         auctionRepository.save(auction);
 
-        // Publish event
-        eventPublisher.publishEvent(new AuctionUpdatedEvent(this, auction));
-
-        return new BidResponse("Dutch auction won", auction.getCurrentBidPrice());
+        return bidResponse;
     }
 
-    /**
-     * Maps Auction entity to AuctionDTO.
-     */
     public AuctionDTO mapToDTO(Auction auction) {
         AuctionDTO dto = new AuctionDTO();
         dto.setId(auction.getId());
@@ -186,35 +209,53 @@ public class AuctionService {
         return dto;
     }
 
-    /**
-     * Finds an auction by its associated item ID.
-     */
     public Optional<Auction> findByItemId(Long itemId) {
         return auctionRepository.findByItemId(itemId);
     }
 
-    /**
-     * Retrieves all bids for a specific auction.
-     */
     public List<BidDTO> getBidsForAuction(Long auctionId) {
+        Optional<Auction> auctionOpt = auctionRepository.findById(auctionId);
+        if (!auctionOpt.isPresent()) {
+            return Collections.emptyList();
+        }
+
+        Auction auction = auctionOpt.get();
         List<Bid> bids = bidRepository.findByAuctionIdOrderByTimestampDesc(auctionId);
-        return bids.stream()
-                .map(bid -> {
-                    UserDTO user = authenticationServiceClient.getUserById(bid.getBidderId());
-                    return new BidDTO(
-                            bid.getId(),
-                            bid.getAmount(),
-                            bid.getBidderId(),
-                            user != null ? user.getUsername() : "Unknown",
-                            bid.getTimestamp()
-                    );
-                })
-                .collect(Collectors.toList());
+
+        if (bids.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<BidDTO> bidDTOs = new ArrayList<>();
+        Double runningAmount = auction.getStartingBidPrice();
+
+        for (int i = bids.size() - 1; i >= 0; i--) {
+            Bid bid = bids.get(i);
+            UserDTO user = itemService.getUserById(bid.getBidderId());
+
+            BidDTO bidDTO = new BidDTO(
+                bid.getId(),
+                bid.getAmount(),
+                bid.getBidderId(),
+                user != null ? user.getUsername() : "Unknown",
+                bid.getTimestamp()
+            );
+
+            if (auction.getAuctionType() == AuctionType.DUTCH && bid.getBidderId().equals(auction.getSellerId())) {
+                bidDTO.setType("PRICE_CHANGE");
+                bidDTO.setPreviousAmount(runningAmount);
+            } else {
+                bidDTO.setType("BID");
+            }
+
+            runningAmount = bid.getAmount();
+            bidDTOs.add(bidDTO);
+        }
+
+        Collections.reverse(bidDTOs);
+        return bidDTOs;
     }
 
-    /**
-     * Retrieves bids for a specific user.
-     */
     public List<BidDTO> getUserBids(Long userId) {
         List<Bid> userBids = bidRepository.findAllByBidderId(userId);
 
@@ -222,63 +263,142 @@ public class AuctionService {
             .map(bid -> {
                 Auction auction = auctionRepository.findById(bid.getAuctionId())
                     .orElseThrow(() -> new AuctionNotFoundException("Auction not found"));
-                
+
                 BidDTO bidDTO = new BidDTO();
                 bidDTO.setId(bid.getId());
                 bidDTO.setAmount(bid.getAmount());
                 bidDTO.setBidderId(bid.getBidderId());
                 bidDTO.setTimestamp(bid.getTimestamp());
-                
-                // Map auction details
+
                 AuctionDTO auctionDTO = mapToDTO(auction);
-                
                 try {
-                    // Fetch item details from the Catalogue Service
-                    ItemDTO itemDTO = catalogueServiceClient.getItemById(auction.getItemId());
+                    ItemDTO itemDTO = itemService.getItemById(auction.getItemId());
                     auctionDTO.setItem(itemDTO);
                 } catch (Exception e) {
-                    // Handle potential errors in fetching item details
                     ItemDTO itemDTO = new ItemDTO();
                     itemDTO.setId(auction.getItemId());
                     itemDTO.setName("Unknown Item");
                     auctionDTO.setItem(itemDTO);
                 }
-                
-                bidDTO.setAuction(auctionDTO);
 
+                bidDTO.setAuction(auctionDTO);
                 return bidDTO;
             })
             .collect(Collectors.toList());
     }
-    
-    // For Dutch Auctions
+
     @Transactional
-    public BidResponse manualDecrement(Long auctionId, Long userId) {
+    public BidResponse manualDecrement(Long auctionId, Long userId, Double decrementAmount) {
         Auction auction = auctionRepository.findById(auctionId)
-                .orElseThrow(() -> new AuctionNotFoundException("Auction not found with ID: " + auctionId));
+            .orElseThrow(() -> new AuctionNotFoundException("Auction not found"));
 
-        // Ensure it's a DUTCH auction and active
         if (auction.getAuctionType() != AuctionType.DUTCH || auction.getStatus() != AuctionStatus.ACTIVE) {
-            throw new InvalidBidException("Auction is not an active Dutch auction.");
+            throw new InvalidDecrementException("Not an active Dutch auction");
         }
 
-        // Check if the user is authorized to decrement (e.g., seller)
         if (!auction.getSellerId().equals(userId)) {
-            throw new InvalidBidException("Only the seller can decrement the price.");
+            throw new InvalidDecrementException("Only the seller can decrease the price");
         }
 
-        double newPrice = auction.getCurrentBidPrice() - auction.getPriceDecrement();
+        if (decrementAmount <= 0) {
+            throw new InvalidDecrementException("Decrement amount must be positive");
+        }
+
+        double oldPrice = auction.getCurrentBidPrice();
+        double newPrice = oldPrice - decrementAmount;
 
         if (newPrice < auction.getMinimumPrice()) {
-            throw new InvalidBidException("Cannot decrement below the minimum price of $" + auction.getMinimumPrice());
+            throw new InvalidDecrementException(
+                String.format("Cannot decrease below minimum price of $%.2f", auction.getMinimumPrice())
+            );
         }
 
+        // Store price change as a "bid"
+        Bid priceChange = new Bid(newPrice, auction.getId(), userId);
+        priceChange.setTimestamp(LocalDateTime.now());
+        bidRepository.save(priceChange);
+
+        // Update auction price
         auction.setCurrentBidPrice(newPrice);
         auctionRepository.save(auction);
 
-        // Publish the update event
+        // Publish update event
         eventPublisher.publishEvent(new AuctionUpdatedEvent(this, auction));
 
-        return new BidResponse("Price decremented successfully", auction.getCurrentBidPrice());
+        // Notify bidders about the price decrement
+        ItemDTO item = itemService.getItemById(auction.getItemId());
+        List<Bid> bids = bidRepository.findByAuctionIdOrderByTimestampDesc(auctionId);
+        Set<Long> bidderIds = bids.stream()
+            .map(Bid::getBidderId)
+            .filter(id -> !id.equals(userId))
+            .collect(Collectors.toSet());
+
+        NotificationDTO priceDecrementNotification = new NotificationDTO(
+            String.format("The price for auction '%s' has been decreased by $%.2f to $%.2f.",
+                item.getName(), decrementAmount, newPrice),
+            "PRICE_DECREMENT"
+        );
+        priceDecrementNotification.setLink("/items/" + auction.getItemId());
+
+        bidderIds.forEach(bidderId ->
+            eventPublisher.publishEvent(new NotificationEvent(this, bidderId, priceDecrementNotification))
+        );
+
+        BidResponse bidResponse = new BidResponse("Price decreased successfully", newPrice);
+        bidResponse.addNotification(priceDecrementNotification);
+
+        return bidResponse;
+    }
+
+    @Scheduled(fixedRate = 60000)
+    @Transactional
+    public void checkAuctionEndings() {
+        LocalDateTime now = LocalDateTime.now();
+        List<Auction> endingAuctions = auctionRepository.findByStatusAndAuctionEndTimeLessThan(
+            AuctionStatus.ACTIVE, now
+        );
+
+        for (Auction auction : endingAuctions) {
+            auction.setStatus(AuctionStatus.ENDED);
+            auctionRepository.save(auction);
+
+            ItemDTO item = itemService.getItemById(auction.getItemId());
+
+            BidResponse auctionEndResponse = new BidResponse("Auction ended", auction.getCurrentBidPrice());
+
+            // Winner notification
+            if (auction.getCurrentBidderId() != null) {
+                NotificationDTO winnerNotification = new NotificationDTO(
+                    String.format("Congratulations! You won the auction for %s", item.getName()),
+                    "AUCTION_WON"
+                );
+                winnerNotification.setLink("/my-bids");
+                eventPublisher.publishEvent(new NotificationEvent(this, auction.getCurrentBidderId(), winnerNotification));
+                auctionEndResponse.addNotification(winnerNotification);
+            }
+
+            // Notify others that auction ended
+            List<Bid> bids = bidRepository.findByAuctionIdOrderByTimestampDesc(auction.getId());
+            Set<Long> loserIds = bids.stream()
+                .map(Bid::getBidderId)
+                .filter(id -> !id.equals(auction.getCurrentBidderId()))
+                .collect(Collectors.toSet());
+
+            NotificationDTO loserNotification = new NotificationDTO(
+                String.format("The auction for %s has ended.", item.getName()),
+                "AUCTION_ENDED"
+            );
+            loserNotification.setLink("/my-bids");
+
+            loserIds.forEach(loserId ->
+                eventPublisher.publishEvent(new NotificationEvent(this, loserId, loserNotification))
+            );
+
+            auctionEndResponse.addNotification(loserNotification);
+        }
+    }
+
+    public Optional<Auction> findByAuctionId(Long auctionId) {
+        return auctionRepository.findById(auctionId);
     }
 }

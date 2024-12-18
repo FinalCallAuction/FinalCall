@@ -1,5 +1,3 @@
-// src/main/java/com/finalcall/catalogueservice/config/SecurityConfig.java
-
 package com.finalcall.catalogueservice.config;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -8,16 +6,21 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.*;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 @Configuration
 public class SecurityConfig {
-
-    @Value("${app.allowedOrigins}")
-    private String[] allowedOrigins;
+    @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
+    private String issuerUri;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -25,34 +28,39 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .cors(Customizer.withDefaults())
             .authorizeHttpRequests(auth -> auth
-                // Public read endpoints
+                .requestMatchers("/ws/internal").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/items/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/items/user/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/itemimages/**").permitAll()
-                // Protected write endpoints
-                .requestMatchers(HttpMethod.POST, "/api/items/**").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/items/create").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/items/{id}/upload-image").authenticated()
                 .requestMatchers(HttpMethod.PUT, "/api/items/**").authenticated()
                 .requestMatchers(HttpMethod.DELETE, "/api/items/**").authenticated()
-                // Any other requests
                 .anyRequest().permitAll()
             )
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt()); // Keep JWT configuration
+            .oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(jwt -> jwt
+                    .decoder(jwtDecoder())
+                )
+            );
 
         return http.build();
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(allowedOrigins)); // e.g., "http://localhost:3000"
-        configuration.setAllowedMethods(Arrays.asList("GET","POST","PUT","DELETE","OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("*"));
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L); // Optional: cache pre-flight response for 1 hour
+    public JwtDecoder jwtDecoder() {
+        return NimbusJwtDecoder.withJwkSetUri(issuerUri + "/.well-known/jwks.json")
+            .jwsAlgorithm(SignatureAlgorithm.RS256)
+            .build();
+    }
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration); // Apply to all endpoints
-
-        return source;
+    @Bean
+    public JwtAuthenticationConverter jwtAuthenticationConverter() {
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(jwt -> {
+            // Extract authorities from JWT claims if needed
+            return Collections.emptyList();
+        });
+        return converter;
     }
 }

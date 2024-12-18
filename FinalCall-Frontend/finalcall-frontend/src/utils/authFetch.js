@@ -1,4 +1,3 @@
-// src/utils/authFetch.js
 export const authFetch = async (url, options = {}, logout) => {
   const userStr = localStorage.getItem('finalcall_user');
   const user = userStr ? JSON.parse(userStr) : null;
@@ -15,11 +14,15 @@ export const authFetch = async (url, options = {}, logout) => {
   try {
     const response = await fetch(url, { ...options, headers });
 
-    if (response.status === 401 && logout) {
-      // Token is invalid or expired
-      logout();
-      // Optionally, alert the user or navigate to login
-      // alert('Session expired. Please login again.');
+    if (response.status === 401) {
+      if (logout) logout();
+      // Optionally redirect to login or show error
+      throw new Error('Unauthorized');
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText);
     }
 
     return response;

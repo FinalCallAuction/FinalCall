@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 // import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -36,7 +37,16 @@ public class ItemController {
      * @return ResponseEntity with the created item or error message.
      */
     @PostMapping("/create")
-    public ResponseEntity<?> createItem(@RequestBody ItemRequest itemRequest, @AuthenticationPrincipal Jwt principal) {
+    public ResponseEntity<?> createItem(
+        @RequestBody ItemRequest itemRequest, 
+        @AuthenticationPrincipal Jwt principal
+    ) {
+        // Log the principal details for debugging
+        logger.info("Creating item for user - ID: {}, Client ID: {}", 
+            principal.getSubject(), 
+            principal.getClaimAsString("client_id")
+        );
+
         Long userId;
         try {
             userId = Long.valueOf(principal.getSubject());
@@ -117,15 +127,18 @@ public class ItemController {
         }
     }
 
-    // Update the service method to not require authentication
     @GetMapping
     public ResponseEntity<?> getAllItems() {
         try {
             List<ItemDTO> itemDTOs = itemService.getAllItemsWithDetails();
+            if (itemDTOs.isEmpty()) {
+                return ResponseEntity.noContent().build(); // Return 204 if no items
+            }
             return ResponseEntity.ok(itemDTOs);
         } catch (Exception e) {
             logger.error("Error fetching all items", e);
-            return ResponseEntity.status(500).body("Error fetching items.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Error fetching items: " + e.getMessage());
         }
     }
 }

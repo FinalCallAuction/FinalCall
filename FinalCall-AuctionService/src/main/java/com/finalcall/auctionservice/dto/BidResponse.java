@@ -1,34 +1,44 @@
-// src/main/java/com/finalcall/auctionservice/dto/BidResponse.java
-
 package com.finalcall.auctionservice.dto;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class BidResponse {
     private String message;
     private Double currentBidPrice;
+    
+    // New fields for notifications
+    private List<NotificationDTO> notifications;
+    private boolean hasNotifications;
 
-    public BidResponse() {
-    }
+    // Existing constructors, getters, and setters
+    public BidResponse() {}
 
     public BidResponse(String message, Double currentBidPrice) {
         this.message = message;
         this.currentBidPrice = currentBidPrice;
     }
 
-    // Getters and Setters
-
-    public String getMessage() {
-        return message;
+    // Add methods for notifications
+    public void addNotification(NotificationDTO notification) {
+        if (this.notifications == null) {
+            this.notifications = new ArrayList<>();
+        }
+        this.notifications.add(notification);
+        this.hasNotifications = true;
     }
 
-    public void setMessage(String message) {
-        this.message = message;
+    // Getters and setters for new fields
+    public List<NotificationDTO> getNotifications() {
+        return notifications;
     }
 
-    public Double getCurrentBidPrice() {
-        return currentBidPrice;
+    public void setNotifications(List<NotificationDTO> notifications) {
+        this.notifications = notifications;
+        this.hasNotifications = notifications != null && !notifications.isEmpty();
     }
 
-    public void setCurrentBidPrice(Double currentBidPrice) {
-        this.currentBidPrice = currentBidPrice;
+    public boolean isHasNotifications() {
+        return hasNotifications;
     }
 }
