@@ -1,8 +1,8 @@
 // src/components/payment/PaymentConfirmation.js
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { AuthContext } from '../../context/AuthContext';
-import { authFetch } from '../../utils/authFetch';
+import { AuthContext } from '../context/AuthContext';
+import { authFetch } from '../utils/authFetch';
 
 const PaymentConfirmation = () => {
   const { transactionId } = useParams();
