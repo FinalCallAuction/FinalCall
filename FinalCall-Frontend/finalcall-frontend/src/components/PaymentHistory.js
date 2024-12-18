@@ -1,8 +1,8 @@
 // src/components/payment/PaymentHistory.js
 import React, { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
-import { AuthContext } from '../../context/AuthContext';
-import { authFetch } from '../../utils/authFetch';
+import { AuthContext } from '../context/AuthContext';
+import { authFetch } from '../utils/authFetch';
 
 const PaymentHistory = () => {
   const { user, logout } = useContext(AuthContext);
