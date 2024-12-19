@@ -1,6 +1,7 @@
 package com.finalcall.paymentservice.service;
 
 import com.finalcall.paymentservice.client.AuctionServiceClient;
+//import com.finalcall.paymentservice.dto.AuctionDTO;
 import com.finalcall.paymentservice.dto.PaymentRequest;
 import com.finalcall.paymentservice.dto.PaymentResponse;
 import com.finalcall.paymentservice.entity.Payment;
@@ -28,8 +29,14 @@ public class PaymentService {
     @Autowired
     private AuctionServiceClient auctionServiceClient;
 
-    public com.finalcall.auctionservice.dto.AuctionDTO getAuctionDetails(Long auctionId) {
+ // In PaymentService.java
+    public com.finalcall.paymentservice.dto.AuctionDTO getAuctionDetails(Long auctionId) {
         return auctionServiceClient.getAuctionById(auctionId);
+    }
+    
+    @Transactional
+    public Payment save(Payment payment) {
+        return paymentRepository.save(payment);
     }
 
     @Transactional
@@ -98,7 +105,7 @@ public class PaymentService {
             .collect(Collectors.toList());
     }
 
-    private PaymentResponse mapToPaymentResponse(Payment payment) {
+    public PaymentResponse mapToPaymentResponse(Payment payment) {
         PaymentResponse response = new PaymentResponse();
         response.setTransactionId(payment.getTransactionId());
         response.setAmount(payment.getAmount());
