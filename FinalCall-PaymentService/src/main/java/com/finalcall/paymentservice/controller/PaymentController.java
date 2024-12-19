@@ -2,7 +2,11 @@ package com.finalcall.paymentservice.controller;
 
 import com.finalcall.paymentservice.dto.PaymentRequest;
 import com.finalcall.paymentservice.dto.PaymentResponse;
+import com.finalcall.paymentservice.entity.Payment;
+import com.finalcall.paymentservice.exception.PaymentNotFoundException;
+import com.finalcall.paymentservice.repository.PaymentRepository;
 import com.finalcall.paymentservice.service.PaymentService;
+import com.finalcall.paymentservice.dto.AuctionDTO;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -17,8 +21,20 @@ public class PaymentController {
     @Autowired
     private PaymentService paymentService;
     
+    @Autowired
+    private PaymentRepository paymentRepository;  
+    
+    
+    @GetMapping("/transaction/{transactionId}")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<PaymentResponse> getTransactionDetails(@PathVariable String transactionId) {
+        Payment payment = paymentRepository.findByTransactionId(transactionId)
+            .orElseThrow(() -> new PaymentNotFoundException("Payment not found"));
+        return ResponseEntity.ok(paymentService.mapToPaymentResponse(payment));  // Use service's mapping method
+    }
+    
     @GetMapping("/auction/{auctionId}/payment-page")
-    @PreAuthorize("hasAuthority('SCOPE_read')")
+   // @PreAuthorize("hasAuthority('SCOPE_read')")
     public String showPaymentPage(@PathVariable Long auctionId, Model model) {
         var auctionDetails = paymentService.getAuctionDetails(auctionId);
         model.addAttribute("auctionDetails", auctionDetails);
@@ -27,7 +43,7 @@ public class PaymentController {
     }
 
     @PostMapping("/process-auction-payment/{auctionId}")
-    @PreAuthorize("hasAuthority('SCOPE_write')")
+   // @PreAuthorize("hasAuthority('SCOPE_write')")
     public ResponseEntity<PaymentResponse> processAuctionPayment(
             @PathVariable Long auctionId,
             @Valid @RequestBody PaymentRequest paymentRequest) {
@@ -36,7 +52,7 @@ public class PaymentController {
     }
 
     @GetMapping("/auction/{auctionId}")
-    @PreAuthorize("hasAuthority('SCOPE_read')")
+   // @PreAuthorize("hasAuthority('SCOPE_read')")
     public ResponseEntity<PaymentResponse> getAuctionPayment(@PathVariable Long auctionId) {
         PaymentResponse response = paymentService.getPaymentByAuctionId(auctionId);
         return ResponseEntity.ok(response);
