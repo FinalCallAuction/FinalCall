@@ -6,12 +6,13 @@ import java.time.LocalDateTime;
 
 @Entity
 @Data
-@Table(indexes = {
-    @Index(name = "idx_transaction_id", columnList = "transactionId", unique = true),
-    @Index(name = "idx_auction_id", columnList = "auctionId", unique = true),
-    @Index(name = "idx_buyer_id", columnList = "buyerId"),
-    @Index(name = "idx_seller_id", columnList = "sellerId")
-})
+@Table(name = "payments", indexes = {
+	    @Index(name = "idx_transaction_id", columnList = "transactionId", unique = true),
+	    @Index(name = "idx_auction_id", columnList = "auctionId", unique = true),
+	    @Index(name = "idx_buyer_id", columnList = "buyerId"),
+	    @Index(name = "idx_seller_id", columnList = "sellerId")
+	})
+
 public class Payment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
