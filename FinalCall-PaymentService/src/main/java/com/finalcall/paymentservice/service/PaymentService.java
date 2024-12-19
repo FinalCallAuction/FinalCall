@@ -1,7 +1,7 @@
 package com.finalcall.paymentservice.service;
 
 import com.finalcall.paymentservice.client.AuctionServiceClient;
-//import com.finalcall.paymentservice.dto.AuctionDTO;
+import com.finalcall.paymentservice.dto.AuctionDTO;
 import com.finalcall.paymentservice.dto.PaymentRequest;
 import com.finalcall.paymentservice.dto.PaymentResponse;
 import com.finalcall.paymentservice.entity.Payment;
@@ -28,8 +28,8 @@ public class PaymentService {
     
     @Autowired
     private AuctionServiceClient auctionServiceClient;
+    
 
- // In PaymentService.java
     public com.finalcall.paymentservice.dto.AuctionDTO getAuctionDetails(Long auctionId) {
         return auctionServiceClient.getAuctionById(auctionId);
     }
