@@ -15,7 +15,5 @@ import java.util.Optional;
 public interface AuctionRepository extends JpaRepository<Auction, Long> {
     Optional<Auction> findByItemId(Long itemId);
     List<Auction> findByAuctionTypeAndStatus(AuctionType auctionType, AuctionStatus status);
-
-    // Optional: Add method to find all active auctions without end time
-    List<Auction> findByAuctionTypeAndStatusAndAuctionEndTimeIsNull(AuctionType auctionType, AuctionStatus status);
+    List<Auction> findByStatus(AuctionStatus status);
 }

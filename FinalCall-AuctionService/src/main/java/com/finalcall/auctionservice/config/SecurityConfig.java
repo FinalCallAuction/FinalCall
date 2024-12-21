@@ -31,7 +31,6 @@ public class SecurityConfig {
             // Define authorization rules
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auctions/create").authenticated() // Require auth for creating auctions
-                .requestMatchers("/api/auctions/*/decrement").authenticated() // Corrected pattern for decrements
                 .requestMatchers("/ws/**").permitAll() // Allow WebSocket connections
                 .anyRequest().permitAll() // Allow all other requests
             )

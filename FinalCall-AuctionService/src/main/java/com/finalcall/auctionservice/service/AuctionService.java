@@ -39,9 +39,6 @@ public class AuctionService {
 
     /**
      * Creates a new auction based on the provided AuctionDTO.
-     *
-     * @param auctionDTO Details of the auction.
-     * @return The created Auction entity.
      */
     @Transactional
     public Auction createAuction(AuctionDTO auctionDTO) {
@@ -50,47 +47,33 @@ public class AuctionService {
         auction.setAuctionType(auctionDTO.getAuctionType());
         auction.setStartingBidPrice(auctionDTO.getStartingBidPrice());
 
-        // Initialize currentBidPrice based on auction type
         if (auctionDTO.getAuctionType() == AuctionType.FORWARD) {
             auction.setCurrentBidPrice(auctionDTO.getStartingBidPrice());
-            auction.setAuctionEndTime(auctionDTO.getAuctionEndTime());
         } else if (auctionDTO.getAuctionType() == AuctionType.DUTCH) {
             auction.setCurrentBidPrice(auctionDTO.getStartingBidPrice());
-
-            // Set price decrement and minimum price for Dutch auctions
             auction.setPriceDecrement(auctionDTO.getPriceDecrement());
             auction.setMinimumPrice(auctionDTO.getMinimumPrice());
-
-            // No auctionEndTime for Dutch auctions
-            auction.setAuctionEndTime(null);
         }
 
+        auction.setAuctionEndTime(auctionDTO.getAuctionEndTime());
         auction.setSellerId(auctionDTO.getSellerId());
         auction.setStartTime(auctionDTO.getStartTime());
         auction.setStatus(AuctionStatus.ACTIVE);
 
-        // Save auction
         Auction savedAuction = auctionRepository.save(auction);
-
-        // Publish the event
         eventPublisher.publishEvent(new AuctionUpdatedEvent(this, savedAuction));
-
         return savedAuction;
     }
 
     /**
      * Places a bid on an auction.
-     *
-     * @param auctionId  The ID of the auction.
-     * @param bidRequest The bid details.
-     * @return BidResponse indicating the result.
      */
     @Transactional
     public BidResponse placeBid(Long auctionId, BidRequest bidRequest) {
         Auction auction = auctionRepository.findById(auctionId)
                 .orElseThrow(() -> new AuctionNotFoundException("Auction not found with ID: " + auctionId));
 
-        // Check if auction is active
+        // Validate auction status
         if (auction.getStatus() != AuctionStatus.ACTIVE) {
             throw new AuctionNotActiveException("This auction is no longer active");
         }
@@ -99,40 +82,54 @@ public class AuctionService {
         if (LocalDateTime.now().isAfter(auction.getAuctionEndTime())) {
             auction.setStatus(AuctionStatus.ENDED);
             auctionRepository.save(auction);
+            eventPublisher.publishEvent(new AuctionUpdatedEvent(this, auction));
             throw new AuctionNotActiveException("This auction has ended");
         }
 
-        if (auction.getAuctionType() == AuctionType.FORWARD) {
-            return handleForwardAuctionBid(auction, bidRequest);
-        } else if (auction.getAuctionType() == AuctionType.DUTCH) {
-            return handleDutchAuctionBid(auction, bidRequest);
+        // Prevent seller from bidding on their own auction
+        if (auction.getSellerId().equals(bidRequest.getBidderId())) {
+            throw new InvalidBidException("Sellers cannot bid on their own auctions");
         }
 
-        throw new UnsupportedOperationException("Unsupported auction type");
-    }
+        // Process bid based on auction type
+        BidResponse response;
+        if (auction.getAuctionType() == AuctionType.FORWARD) {
+            response = handleForwardAuctionBid(auction, bidRequest);
+        } else if (auction.getAuctionType() == AuctionType.DUTCH) {
+            response = handleDutchAuctionBid(auction, bidRequest);
+        } else {
+            throw new UnsupportedOperationException("Unsupported auction type");
+        }
 
+        // Enhance response with additional details
+        try {
+            UserDTO bidder = authenticationServiceClient.getUserById(bidRequest.getBidderId());
+            response.setBidderName(bidder.getUsername());
+            response.setBidTimestamp(LocalDateTime.now());
+            response.setAuctionStatus(auction.getStatus().name());
+            response.setIsWinningBid(auction.getCurrentBidderId().equals(bidRequest.getBidderId()));
+        } catch (Exception e) {
+            // Log error but continue with basic response
+        }
+
+        return response;
+    }
     /**
      * Handles bid placement for forward auctions.
      */
     private BidResponse handleForwardAuctionBid(Auction auction, BidRequest bidRequest) {
-        // Validate bid amount
         if (bidRequest.getBidAmount() <= auction.getCurrentBidPrice()) {
             throw new InvalidBidException("Bid must be higher than current bid of $" + 
                 auction.getCurrentBidPrice());
         }
 
-        // Update auction
         auction.setCurrentBidPrice(bidRequest.getBidAmount());
         auction.setCurrentBidderId(bidRequest.getBidderId());
         
-        // Save bid
         Bid bid = new Bid(bidRequest.getBidAmount(), auction.getId(), bidRequest.getBidderId());
         bidRepository.save(bid);
         
-        // Save auction
         auctionRepository.save(auction);
-
-        // Publish event
         eventPublisher.publishEvent(new AuctionUpdatedEvent(this, auction));
 
         return new BidResponse("Bid placed successfully", auction.getCurrentBidPrice());
@@ -142,55 +139,73 @@ public class AuctionService {
      * Handles bid placement for Dutch auctions.
      */
     private BidResponse handleDutchAuctionBid(Auction auction, BidRequest bidRequest) {
-        // For Dutch auctions, the bid must equal the current price
         if (bidRequest.getBidAmount().compareTo(auction.getCurrentBidPrice()) != 0) {
             throw new InvalidBidException("For Dutch auctions, bid must equal current price of $" + 
                 auction.getCurrentBidPrice());
         }
 
-        // End the auction immediately as Dutch auctions end on first valid bid
         auction.setStatus(AuctionStatus.ENDED);
         auction.setCurrentBidderId(bidRequest.getBidderId());
         
-        // Save bid
         Bid bid = new Bid(bidRequest.getBidAmount(), auction.getId(), bidRequest.getBidderId());
         bidRepository.save(bid);
         
-        // Save auction
         auctionRepository.save(auction);
-
-        // Publish event
         eventPublisher.publishEvent(new AuctionUpdatedEvent(this, auction));
 
         return new BidResponse("Dutch auction won", auction.getCurrentBidPrice());
     }
 
     /**
-     * Maps Auction entity to AuctionDTO.
+     * Scheduled task to check and update auction statuses.
      */
-    public AuctionDTO mapToDTO(Auction auction) {
-        AuctionDTO dto = new AuctionDTO();
-        dto.setId(auction.getId());
-        dto.setItemId(auction.getItemId());
-        dto.setAuctionType(auction.getAuctionType());
-        dto.setStartingBidPrice(auction.getStartingBidPrice());
-        dto.setCurrentBidPrice(auction.getCurrentBidPrice());
-        dto.setAuctionEndTime(auction.getAuctionEndTime());
-        dto.setSellerId(auction.getSellerId());
-        dto.setStartTime(auction.getStartTime());
-        dto.setPriceDecrement(auction.getPriceDecrement());
-        dto.setMinimumPrice(auction.getMinimumPrice());
-        dto.setCurrentBidderId(auction.getCurrentBidderId());
-        dto.setImageUrls(auction.getImageUrls());
-        dto.setStatus(auction.getStatus().name());
-        return dto;
+    @Scheduled(fixedRate = 60000) // Every minute
+    @Transactional
+    public void updateAuctionStatuses() {
+        List<Auction> activeAuctions = auctionRepository
+            .findByStatus(AuctionStatus.ACTIVE);
+
+        LocalDateTime now = LocalDateTime.now();
+        for (Auction auction : activeAuctions) {
+            if (now.isAfter(auction.getAuctionEndTime())) {
+                auction.setStatus(AuctionStatus.ENDED);
+                auctionRepository.save(auction);
+                eventPublisher.publishEvent(new AuctionUpdatedEvent(this, auction));
+            }
+        }
     }
 
     /**
-     * Finds an auction by its associated item ID.
+     * Scheduled task to decrease Dutch auction prices.
      */
-    public Optional<Auction> findByItemId(Long itemId) {
-        return auctionRepository.findByItemId(itemId);
+    @Scheduled(fixedRate = 60000) // Every minute
+    @Transactional
+    public void decreaseDutchAuctionPrices() {
+        List<Auction> activeDutchAuctions = auctionRepository
+            .findByAuctionTypeAndStatus(AuctionType.DUTCH, AuctionStatus.ACTIVE);
+
+        LocalDateTime now = LocalDateTime.now();
+        for (Auction auction : activeDutchAuctions) {
+            // First check if auction should end due to time
+            if (now.isAfter(auction.getAuctionEndTime())) {
+                auction.setStatus(AuctionStatus.ENDED);
+                auctionRepository.save(auction);
+                eventPublisher.publishEvent(new AuctionUpdatedEvent(this, auction));
+                continue;
+            }
+
+            double newPrice = auction.getCurrentBidPrice() - auction.getPriceDecrement();
+            
+            if (newPrice <= auction.getMinimumPrice()) {
+                auction.setCurrentBidPrice(auction.getMinimumPrice());
+                auction.setStatus(AuctionStatus.ENDED);
+            } else {
+                auction.setCurrentBidPrice(newPrice);
+            }
+            
+            auctionRepository.save(auction);
+            eventPublisher.publishEvent(new AuctionUpdatedEvent(this, auction));
+        }
     }
 
     /**
@@ -245,40 +260,112 @@ public class AuctionService {
                 }
                 
                 bidDTO.setAuction(auctionDTO);
-
                 return bidDTO;
             })
             .collect(Collectors.toList());
     }
+
+    /**
+     * Maps Auction entity to AuctionDTO.
+     */
+//    public AuctionDTO mapToDTO(Auction auction) {
+//        AuctionDTO dto = new AuctionDTO();
+//        dto.setId(auction.getId());
+//        dto.setItemId(auction.getItemId());
+//        dto.setAuctionType(auction.getAuctionType());
+//        dto.setStartingBidPrice(auction.getStartingBidPrice());
+//        dto.setCurrentBidPrice(auction.getCurrentBidPrice());
+//        dto.setAuctionEndTime(auction.getAuctionEndTime());
+//        dto.setSellerId(auction.getSellerId());
+//        dto.setStartTime(auction.getStartTime());
+//        dto.setPriceDecrement(auction.getPriceDecrement());
+//        dto.setMinimumPrice(auction.getMinimumPrice());
+//        dto.setCurrentBidderId(auction.getCurrentBidderId());
+//        dto.setImageUrls(auction.getImageUrls());
+//        dto.setStatus(auction.getStatus().name());
+//        return dto;
+//    }
     
-    // For Dutch Auctions
-    @Transactional
-    public BidResponse manualDecrement(Long auctionId, Long userId) {
-        Auction auction = auctionRepository.findById(auctionId)
-                .orElseThrow(() -> new AuctionNotFoundException("Auction not found with ID: " + auctionId));
+    public AuctionDTO mapToDTO(Auction auction) {
+        AuctionDTO dto = new AuctionDTO();
+        dto.setId(auction.getId());
+        dto.setItemId(auction.getItemId());
+        dto.setAuctionType(auction.getAuctionType());
+        dto.setStartingBidPrice(auction.getStartingBidPrice());
+        dto.setCurrentBidPrice(auction.getCurrentBidPrice());
+        dto.setAuctionEndTime(auction.getAuctionEndTime());
+        dto.setSellerId(auction.getSellerId());
+        dto.setStartTime(auction.getStartTime());
+        dto.setPriceDecrement(auction.getPriceDecrement());
+        dto.setMinimumPrice(auction.getMinimumPrice());
+        dto.setCurrentBidderId(auction.getCurrentBidderId());
+        dto.setImageUrls(auction.getImageUrls());
+        dto.setStatus(auction.getStatus().name());
 
-        // Ensure it's a DUTCH auction and active
-        if (auction.getAuctionType() != AuctionType.DUTCH || auction.getStatus() != AuctionStatus.ACTIVE) {
-            throw new InvalidBidException("Auction is not an active Dutch auction.");
+        // Fetch and set current bidder details if available
+        if (auction.getCurrentBidderId() != null) {
+            try {
+                UserDTO currentBidder = authenticationServiceClient.getUserById(auction.getCurrentBidderId());
+                dto.setCurrentBidderName(currentBidder.getUsername());
+                dto.setCurrentBidderDetails(currentBidder);
+            } catch (Exception e) {
+                // Log error but continue with available data
+                dto.setCurrentBidderName("Unknown Bidder");
+            }
         }
 
-        // Check if the user is authorized to decrement (e.g., seller)
-        if (!auction.getSellerId().equals(userId)) {
-            throw new InvalidBidException("Only the seller can decrement the price.");
+        // Fetch and set seller details
+        try {
+            UserDTO seller = authenticationServiceClient.getUserById(auction.getSellerId());
+            dto.setSellerName(seller.getUsername());
+            dto.setSellerDetails(seller);
+        } catch (Exception e) {
+            // Log error but continue with available data
+            dto.setSellerName("Unknown Seller");
         }
 
-        double newPrice = auction.getCurrentBidPrice() - auction.getPriceDecrement();
-
-        if (newPrice < auction.getMinimumPrice()) {
-            throw new InvalidBidException("Cannot decrement below the minimum price of $" + auction.getMinimumPrice());
+        // Include latest bid information
+        List<Bid> bids = bidRepository.findByAuctionIdOrderByTimestampDesc(auction.getId());
+        if (!bids.isEmpty()) {
+            Bid latestBid = bids.get(0);
+            dto.setLatestBidTimestamp(latestBid.getTimestamp());
+            dto.setTotalBids((long) bids.size());
         }
 
-        auction.setCurrentBidPrice(newPrice);
-        auctionRepository.save(auction);
+        // Add auction status details
+        dto.setIsEnded(auction.getStatus() == AuctionStatus.ENDED);
+        dto.setTimeRemaining(auction.getAuctionEndTime().isAfter(LocalDateTime.now()) ? 
+            auction.getAuctionEndTime().toString() : "Ended");
 
-        // Publish the update event
-        eventPublisher.publishEvent(new AuctionUpdatedEvent(this, auction));
+        return dto;
+    }
 
-        return new BidResponse("Price decremented successfully", auction.getCurrentBidPrice());
+    /**
+     * Finds an auction by its associated item ID.
+     */
+    public Optional<Auction> findByItemId(Long itemId) {
+        return auctionRepository.findByItemId(itemId);
+    }
+
+    /**
+     * Checks if an auction is ended and if the specified user is the winner.
+     */
+    public boolean isAuctionEndedAndUserIsWinner(Long auctionId, Long userId) {
+        Optional<Auction> auctionOpt = auctionRepository.findById(auctionId);
+        if (auctionOpt.isEmpty()) {
+            return false;
+        }
+        
+        Auction auction = auctionOpt.get();
+        return auction.getStatus() == AuctionStatus.ENDED &&
+               auction.getCurrentBidderId() != null &&
+               auction.getCurrentBidderId().equals(userId);
+    }
+
+    /**
+     * Get auction by ID.
+     */
+    public Optional<Auction> getAuctionById(Long auctionId) {
+        return auctionRepository.findById(auctionId);
     }
 }

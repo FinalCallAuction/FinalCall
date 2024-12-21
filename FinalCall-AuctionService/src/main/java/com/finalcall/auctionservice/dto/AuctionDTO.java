@@ -1,5 +1,3 @@
-// src/main/java/com/finalcall/auctionservice/dto/AuctionDTO.java
-
 package com.finalcall.auctionservice.dto;
 
 import com.finalcall.auctionservice.entity.AuctionType;
@@ -14,130 +12,114 @@ public class AuctionDTO {
     private Double currentBidPrice;
     private LocalDateTime auctionEndTime;
     private Long sellerId;
+    private String sellerName;
     private LocalDateTime startTime;
     private Double priceDecrement;
     private Double minimumPrice;
     private Long currentBidderId;
+    private String currentBidderName;
     private List<String> imageUrls;
     private String status;
     private ItemDTO item;
+    private UserDTO currentBidderDetails;;
+    private UserDTO sellerDetails;
+    private LocalDateTime latestBidTimestamp;
+    private Long totalBids;
+    private Boolean isEnded;
+    private String timeRemaining;
 
-    // Constructors
+    // Existing getters and setters remain the same
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
 
-    public AuctionDTO() {
-    }
+    public Long getItemId() { return itemId; }
+    public void setItemId(Long itemId) { this.itemId = itemId; }
 
-    // Getters and Setters
+    public AuctionType getAuctionType() { return auctionType; }
+    public void setAuctionType(AuctionType auctionType) { this.auctionType = auctionType; }
 
-    public Long getId() {
-        return id;
-    }
+    public Double getStartingBidPrice() { return startingBidPrice; }
+    public void setStartingBidPrice(Double startingBidPrice) { this.startingBidPrice = startingBidPrice; }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+    public Double getCurrentBidPrice() { return currentBidPrice; }
+    public void setCurrentBidPrice(Double currentBidPrice) { this.currentBidPrice = currentBidPrice; }
 
-    public Long getItemId() {
-        return itemId;
-    }
+    public LocalDateTime getAuctionEndTime() { return auctionEndTime; }
+    public void setAuctionEndTime(LocalDateTime auctionEndTime) { this.auctionEndTime = auctionEndTime; }
 
-    public void setItemId(Long itemId) {
-        this.itemId = itemId;
-    }
+    public Long getSellerId() { return sellerId; }
+    public void setSellerId(Long sellerId) { this.sellerId = sellerId; }
 
-    public AuctionType getAuctionType() {
-        return auctionType;
-    }
+    public String getSellerName() { return sellerName; }
+    public void setSellerName(String sellerName) { this.sellerName = sellerName; }
 
-    public void setAuctionType(AuctionType auctionType) {
-        this.auctionType = auctionType;
-    }
+    public LocalDateTime getStartTime() { return startTime; }
+    public void setStartTime(LocalDateTime startTime) { this.startTime = startTime; }
 
-    public Double getStartingBidPrice() {
-        return startingBidPrice;
-    }
+    public Double getPriceDecrement() { return priceDecrement; }
+    public void setPriceDecrement(Double priceDecrement) { this.priceDecrement = priceDecrement; }
 
-    public void setStartingBidPrice(Double startingBidPrice) {
-        this.startingBidPrice = startingBidPrice;
-    }
+    public Double getMinimumPrice() { return minimumPrice; }
+    public void setMinimumPrice(Double minimumPrice) { this.minimumPrice = minimumPrice; }
 
-    public Double getCurrentBidPrice() {
-        return currentBidPrice;
-    }
+    public Long getCurrentBidderId() { return currentBidderId; }
+    public void setCurrentBidderId(Long currentBidderId) { this.currentBidderId = currentBidderId; }
 
-    public void setCurrentBidPrice(Double currentBidPrice) {
-        this.currentBidPrice = currentBidPrice;
-    }
+    public String getCurrentBidderName() { return currentBidderName; }
+    public void setCurrentBidderName(String currentBidderName) { this.currentBidderName = currentBidderName; }
 
-    public LocalDateTime getAuctionEndTime() {
-        return auctionEndTime;
-    }
+    public List<String> getImageUrls() { return imageUrls; }
+    public void setImageUrls(List<String> imageUrls) { this.imageUrls = imageUrls; }
 
-    public void setAuctionEndTime(LocalDateTime auctionEndTime) {
-        this.auctionEndTime = auctionEndTime;
-    }
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
 
-    public Long getSellerId() {
-        return sellerId;
-    }
-
-    public void setSellerId(Long sellerId) {
-        this.sellerId = sellerId;
-    }
-
-    public LocalDateTime getStartTime() {
-        return startTime;
-    }
-
-    public void setStartTime(LocalDateTime startTime) {
-        this.startTime = startTime;
-    }
-
-    public Double getPriceDecrement() {
-        return priceDecrement;
-    }
-
-    public void setPriceDecrement(Double priceDecrement) {
-        this.priceDecrement = priceDecrement;
-    }
-
-    public Double getMinimumPrice() {
-        return minimumPrice;
-    }
-
-    public void setMinimumPrice(Double minimumPrice) {
-        this.minimumPrice = minimumPrice;
-    }
-
-    public Long getCurrentBidderId() {
-        return currentBidderId;
-    }
-
-    public void setCurrentBidderId(Long currentBidderId) {
-        this.currentBidderId = currentBidderId;
-    }
-
-    public List<String> getImageUrls() {
-        return imageUrls;
-    }
-
-    public void setImageUrls(List<String> imageUrls) {
-        this.imageUrls = imageUrls;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
+    public ItemDTO getItem() { return item; }
+    public void setItem(ItemDTO item) { this.item = item; }
     
-    public void setItem(ItemDTO item) {
-        this.item = item;
+    public UserDTO getCurrentBidderDetails() {
+        return currentBidderDetails;
     }
 
-    public ItemDTO getItem() {
-        return item;
+    public void setCurrentBidderDetails(UserDTO currentBidderDetails) {
+        this.currentBidderDetails = currentBidderDetails;
+    }
+
+
+    public UserDTO getSellerDetails() {
+        return sellerDetails;
+    }
+
+    public void setSellerDetails(UserDTO sellerDetails) {
+        this.sellerDetails = sellerDetails;
+    }
+
+    public LocalDateTime getLatestBidTimestamp() {
+        return latestBidTimestamp;
+    }
+
+    public void setLatestBidTimestamp(LocalDateTime latestBidTimestamp) {
+        this.latestBidTimestamp = latestBidTimestamp;
+    }
+
+    public Long getTotalBids() {
+        return totalBids;
+    }
+
+    public void setTotalBids(Long totalBids) {
+        this.totalBids = totalBids;
+    }
+
+    public Boolean getIsEnded() {
+        return isEnded;
+    }
+
+    public void setIsEnded(Boolean isEnded) {
+        this.isEnded = isEnded;
+    }
+
+    public String getTimeRemaining() {return timeRemaining;}
+    public void setTimeRemaining(String timeRemaining) {
+        this.timeRemaining = timeRemaining;
     }
 }

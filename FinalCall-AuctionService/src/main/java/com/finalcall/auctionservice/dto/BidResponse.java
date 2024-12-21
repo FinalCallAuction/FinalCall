@@ -1,11 +1,16 @@
-// src/main/java/com/finalcall/auctionservice/dto/BidResponse.java
-
 package com.finalcall.auctionservice.dto;
+
+import java.time.LocalDateTime;
 
 public class BidResponse {
     private String message;
     private Double currentBidPrice;
+    private String bidderName;
+    private LocalDateTime bidTimestamp;
+    private String auctionStatus;
+    private Boolean isWinningBid;
 
+    // Existing constructors...
     public BidResponse() {
     }
 
@@ -14,8 +19,40 @@ public class BidResponse {
         this.currentBidPrice = currentBidPrice;
     }
 
-    // Getters and Setters
+    // Add getters and setters for new fields
+    public String getBidderName() {
+        return bidderName;
+    }
 
+    public void setBidderName(String bidderName) {
+        this.bidderName = bidderName;
+    }
+
+    public LocalDateTime getBidTimestamp() {
+        return bidTimestamp;
+    }
+
+    public void setBidTimestamp(LocalDateTime bidTimestamp) {
+        this.bidTimestamp = bidTimestamp;
+    }
+
+    public String getAuctionStatus() {
+        return auctionStatus;
+    }
+
+    public void setAuctionStatus(String auctionStatus) {
+        this.auctionStatus = auctionStatus;
+    }
+
+    public Boolean getIsWinningBid() {
+        return isWinningBid;
+    }
+
+    public void setIsWinningBid(Boolean isWinningBid) {
+        this.isWinningBid = isWinningBid;
+    }
+
+    // Keep existing getters and setters...
     public String getMessage() {
         return message;
     }

@@ -5,8 +5,6 @@ package com.finalcall.auctionservice.controller;
 import com.finalcall.auctionservice.dto.*;
 import com.finalcall.auctionservice.entity.Auction;
 import com.finalcall.auctionservice.entity.AuctionType;
-import com.finalcall.auctionservice.exception.AuctionNotFoundException;
-import com.finalcall.auctionservice.exception.InvalidBidException;
 import com.finalcall.auctionservice.service.AuctionService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -131,24 +129,12 @@ public class AuctionController {
         }
     }
     
-    /**
-     * Endpoint to manually decrement the price of a Dutch auction.
-     *
-     * @param auctionId The ID of the auction.
-     * @param userId    The ID of the user performing the decrement.
-     * @return ResponseEntity with the result of the decrement operation.
-     */
-    @PostMapping("/{auctionId}/decrement")
-    public ResponseEntity<?> manualDecrement(@PathVariable Long auctionId, @RequestParam Long userId) {
-        try {
-            BidResponse response = auctionService.manualDecrement(auctionId, userId);
-            return ResponseEntity.ok(response);
-        } catch (AuctionNotFoundException | InvalidBidException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            // Log exception
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error performing price decrement.");
+    @GetMapping("/{auctionId}")
+    public ResponseEntity<?> getAuctionById(@PathVariable Long auctionId) {
+        Optional<Auction> auction = auctionService.getAuctionById(auctionId);
+        if (auction.isPresent()) {
+            return ResponseEntity.ok(auctionService.mapToDTO(auction.get()));
         }
+        return ResponseEntity.notFound().build();
     }
 }
