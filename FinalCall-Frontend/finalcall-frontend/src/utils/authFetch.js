@@ -1,6 +1,6 @@
 // src/utils/authFetch.js
 export const authFetch = async (url, options = {}, logout) => {
-  const userStr = localStorage.getItem('finalcall_user');
+  const userStr = sessionStorage.getItem('finalcall_user');
   const user = userStr ? JSON.parse(userStr) : null;
 
   const headers = {

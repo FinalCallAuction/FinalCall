@@ -1,24 +1,21 @@
-// src/components/ItemsPage.js
-
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import CountdownTimer from './CountdownTimer';
 
 const ItemsPage = () => {
   const [items, setItems] = useState([]);
-  const [bidCounts, setBidCounts] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 9; // Fixed items per page
+  const [itemsPerPage] = useState(9);
   const [searchTerm, setSearchTerm] = useState('');
+  const [bidCounts, setBidCounts] = useState({});
 
   useEffect(() => {
     const fetchItems = async () => {
       try {
         const response = await fetch('http://localhost:8082/api/items', {
           method: 'GET',
-          credentials: 'include', // Include cookies if needed
         });
 
         if (response.ok) {
@@ -27,27 +24,14 @@ const ItemsPage = () => {
           setError('');
 
           // Fetch bid counts for each auction
-          const bidCountPromises = data.map(item => {
-            // Ensure that auction and auction.id exist
-            if (item.auction && item.auction.id) {
-              return fetch(`http://localhost:8084/api/auctions/${item.auction.id}/bids`, {
-                method: 'GET',
-                credentials: 'include', // Include cookies if needed
-              })
-                .then(res => {
-                  if (res.ok) return res.json();
-                  else return [];
-                })
-                .catch(err => {
-                  console.error(`Error fetching bids for auction ID ${item.auction.id}:`, err);
-                  return [];
-                });
-            } else {
-              return Promise.resolve([]);
-            }
-          });
+          const bidCountPromises = data.map(item => 
+            fetch(`http://localhost:8084/api/auctions/${item.auction.id}/bids`)
+          );
 
-          const bidCountData = await Promise.all(bidCountPromises);
+          const bidCountResponses = await Promise.all(bidCountPromises);
+          const bidCountData = await Promise.all(
+            bidCountResponses.map(response => response.json())
+          );
 
           const countMap = {};
           bidCountData.forEach((bids, index) => {
@@ -81,7 +65,7 @@ const ItemsPage = () => {
   const totalPages = Math.ceil(items.length / itemsPerPage);
 
   // Filter items based on search term
-  const filteredItems = currentItems.filter(item =>
+  const filteredItems = currentItems.filter((item) =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -95,7 +79,7 @@ const ItemsPage = () => {
             type="text"
             placeholder="Search items..."
             value={searchTerm}
-            onChange={e => setSearchTerm(e.target.value)}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full px-4 py-2 border rounded"
           />
         </div>
@@ -131,14 +115,14 @@ const ItemsPage = () => {
   return (
     <div className="container mx-auto px-4 py-6">
       <h1 className="text-3xl font-bold mb-4">All Items</h1>
-
+      
       {/* Search Input */}
       <div className="mb-4">
         <input
           type="text"
           placeholder="Search items..."
           value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
+          onChange={(e) => setSearchTerm(e.target.value)}
           className="w-full px-4 py-2 border rounded"
         />
       </div>
@@ -148,90 +132,49 @@ const ItemsPage = () => {
         <p className="text-center text-gray-700">No items found.</p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {filteredItems.map(item => (
-            <div
-              key={item.id}
-              className="border p-4 rounded shadow hover:shadow-lg transition-shadow duration-300"
-            >
+          {filteredItems.map((item) => (
+            <div key={item.id} className="border p-4 rounded shadow hover:shadow-lg transition-shadow duration-300">
               <h2 className="text-xl font-semibold mb-1">{item.name}</h2>
-
-              {/* Listed By Positioning */}
-              <div className="flex justify-between items-center mb-2">
-                <p className="text-sm text-gray-600">
-                  Listed by:{' '}
-                  <Link
-                    to={`/profile/${item.listedBy}`}
-                    className="text-blue-500 hover:underline"
-                  >
-                    {item.listedByName || 'Unknown'}
-                  </Link>
-                </p>
-              </div>
-
-              {/* Image Container with Auction Type Badge */}
-              <div className="relative">
-                {item.imageUrls && item.imageUrls.length > 0 ? (
-                  <img
-                    src={`http://localhost:8082${item.imageUrls[0]}`}
-                    alt={item.name}
-                    className="w-full h-48 object-cover mb-2 rounded"
-                    loading="lazy"
-                  />
-                ) : (
-                  <img
-                    src="https://placehold.co/600x400"
-                    alt="Placeholder"
-                    className="w-full h-48 object-cover mb-2 rounded"
-                    loading="lazy"
-                  />
-                )}
-                {/* Auction Type Badge */}
-                {item.auction && (
-                  <span
-                    className={`absolute top-2 right-2 px-2 py-1 text-xs font-semibold rounded ${
-                      item.auction.auctionType === 'DUTCH'
-                        ? 'bg-yellow-200 text-yellow-800'
-                        : 'bg-blue-200 text-blue-800'
-                    }`}
-                  >
-                    {item.auction.auctionType === 'DUTCH'
-                      ? 'Dutch Auction'
-                      : 'Forward Auction'}
-                  </span>
-                )}
-              </div>
-
-              {/* Countdown Timer for Forward Auctions */}
+              <p className="text-sm text-gray-600 mb-2">
+                Listed by:{" "}
+                <Link 
+                  to={`/profile/${item.listedBy}`}
+                  className="text-blue-500 hover:underline"
+                >
+                  {item.listedByName}
+                </Link>
+              </p>
+              {item.imageUrls && item.imageUrls.length > 0 ? (
+                <img
+                  src={`http://localhost:8082${item.imageUrls[0]}`}
+                  alt={item.name}
+                  className="w-full h-48 object-cover mb-2 rounded"
+                  loading="lazy"
+                />
+              ) : (
+                <img
+                  src="https://placehold.co/600x400"
+                  alt="Placeholder"
+                  className="w-full h-48 object-cover mb-2 rounded"
+                  loading="lazy"
+                />
+              )}
               {item.auction && item.auction.auctionEndTime && (
                 <CountdownTimer endTime={item.auction.auctionEndTime} />
               )}
-
-              {/* Auction Details */}
               {item.auction && (
                 <div className="mt-2 space-y-1">
-                  <p className="text-sm text-gray-500">
-                    <strong>Starting Bid:</strong>{' '}
-                    <span className="text-gray-700">
-                      $
-                      {item.auction.startingBidPrice
-                        ? item.auction.startingBidPrice.toFixed(2)
-                        : 'N/A'}
-                    </span>
+                  <p>
+                    <strong>Starting Bid:</strong> ${item.auction.startingBidPrice?.toFixed(2) || 'N/A'}
                   </p>
-                  <p className="text-base font-semibold">
-                    <strong>Current Bid:</strong>{' '}
-                    $
-                    {item.auction.currentBidPrice
-                      ? item.auction.currentBidPrice.toFixed(2)
-                      : 'N/A'}
+                  <p>
+                    <strong>Current Bid:</strong> ${item.auction.currentBidPrice?.toFixed(2) || 'N/A'}
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p>
                     <strong>Bids:</strong> {bidCounts[item.id] || 0}
                   </p>
                 </div>
               )}
-
-              {/* View Details Button */}
               <Link
                 to={`/items/${item.id}`}
                 className="inline-block mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
