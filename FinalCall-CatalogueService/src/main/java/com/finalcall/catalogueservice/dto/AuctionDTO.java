@@ -16,6 +16,7 @@ public class AuctionDTO {
     private Double priceDecrement; // For Dutch auctions
     private Double minimumPrice;   // For Dutch auctions
     private String status;
+    private Long currentBidderId;
 
     // Constructors
     public AuctionDTO() {}
@@ -65,6 +66,9 @@ public class AuctionDTO {
     
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    
+    public Long getCurrentBidderId() { return currentBidderId; }
+    public void setCurrentBidderId(Long currentBidderId) { this.currentBidderId = currentBidderId; }
 
     @Override
     public String toString() {
@@ -76,6 +80,7 @@ public class AuctionDTO {
                 ", auctionEndTime=" + auctionEndTime +
                 ", sellerId=" + sellerId +
                 ", startTime=" + startTime +
+                ", currentBidderId=" + currentBidderId +
                 '}';
     }
 }

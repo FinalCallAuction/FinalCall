@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 /**
  * Feign client to communicate with the AuctionService.
  */
-@FeignClient(name = "auction-service", url = "${auction.service.url}", configuration = FeignConfig.class)
+@FeignClient(name = "auction-service", url = "${auction.service.url:http://localhost:8084}", configuration = FeignConfig.class)
 public interface AuctionServiceClient {
 
     /**

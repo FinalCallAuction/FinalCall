@@ -96,28 +96,17 @@ public class ItemService {
         Item savedItem = createItem(item);
 
         // Create AuctionDTO
-     // src/main/java/com/finalcall/catalogueservice/service/ItemService.java
+        AuctionDTO auctionDTO = new AuctionDTO();
+        auctionDTO.setItemId(savedItem.getId());
+        auctionDTO.setAuctionType(itemRequest.getAuctionType());
+        auctionDTO.setStartingBidPrice(itemRequest.getStartingBid());
+        auctionDTO.setCurrentBidPrice(itemRequest.getStartingBid());
+        auctionDTO.setAuctionEndTime(itemRequest.getAuctionEndTime());
+        auctionDTO.setSellerId(userId);
+        auctionDTO.setStartTime(itemRequest.getAuctionStartTime() != null ? itemRequest.getAuctionStartTime() : LocalDateTime.now());
 
-     // After fetching itemRequest and before calling auctionServiceClient.createAuction
-
-	     AuctionDTO auctionDTO = new AuctionDTO();
-	     auctionDTO.setItemId(savedItem.getId());
-	     auctionDTO.setAuctionType(itemRequest.getAuctionType());
-	     auctionDTO.setStartingBidPrice(itemRequest.getStartingBid());
-	     auctionDTO.setCurrentBidPrice(itemRequest.getStartingBid());
-	     auctionDTO.setAuctionEndTime(itemRequest.getAuctionEndTime());
-	     auctionDTO.setSellerId(userId);
-	     auctionDTO.setStartTime(itemRequest.getAuctionStartTime() != null ? itemRequest.getAuctionStartTime() : LocalDateTime.now());
-	
-	     // If the auction type is DUTCH, set the price decrement and minimum price
-	     if ("DUTCH".equalsIgnoreCase(itemRequest.getAuctionType())) {
-	         auctionDTO.setPriceDecrement(itemRequest.getPriceDecrement());
-	         auctionDTO.setMinimumPrice(itemRequest.getMinimumPrice());
-	     }
-	
-	     // Create Auction via AuctionService
-	     ResponseEntity<?> auctionResponse = auctionServiceClient.createAuction(auctionDTO);
-
+        // Create Auction via AuctionService
+        ResponseEntity<?> auctionResponse = auctionServiceClient.createAuction(auctionDTO);
         if (auctionResponse.getStatusCode() != HttpStatus.CREATED) {
             logger.error("Failed to create auction: {}", auctionResponse.getStatusCode());
             throw new Exception("Failed to create auction.");
@@ -185,34 +174,71 @@ public class ItemService {
      *
      * @return List of ItemDTOs.
      */
+//    public List<ItemDTO> getAllItemsWithDetails() {
+//        List<Item> items = getAllItems();
+//        List<ItemDTO> itemDTOs = new ArrayList<>();
+//
+//        for (Item item : items) {
+//            try {
+//                // Fetch auction details
+//                ResponseEntity<AuctionDTO> auctionResponse = auctionServiceClient.getAuctionByItemId(item.getId());
+//                AuctionDTO auctionDTO = null;
+//                if (auctionResponse.getStatusCode() == HttpStatus.OK) {
+//                    auctionDTO = auctionResponse.getBody();
+//                }
+//
+//                // Fetch seller's name
+//                String sellerName = fetchSellerName(item.getListedBy());
+//
+//                // Map to ItemDTO
+//                ItemDTO itemDTO = mapToItemDTO(item, auctionDTO, sellerName);
+//                itemDTOs.add(itemDTO);
+//            } catch (Exception e) {
+//                logger.error("Error fetching auction details for item ID: {}", item.getId(), e);
+//                // Optionally, continue or handle differently
+//            }
+//        }
+//
+//        return itemDTOs;
+//    }
+
     public List<ItemDTO> getAllItemsWithDetails() {
         List<Item> items = getAllItems();
+        logger.debug("Found {} items in total", items.size());
+
         List<ItemDTO> itemDTOs = new ArrayList<>();
 
         for (Item item : items) {
             try {
+                logger.debug("Processing item ID: {}", item.getId());
+                
                 // Fetch auction details
                 ResponseEntity<AuctionDTO> auctionResponse = auctionServiceClient.getAuctionByItemId(item.getId());
+                logger.debug("Auction response for item {}: {}", item.getId(), auctionResponse.getStatusCode());
+                
                 AuctionDTO auctionDTO = null;
                 if (auctionResponse.getStatusCode() == HttpStatus.OK) {
                     auctionDTO = auctionResponse.getBody();
+                    logger.debug("Retrieved auction details for item {}", item.getId());
                 }
 
                 // Fetch seller's name
                 String sellerName = fetchSellerName(item.getListedBy());
+                logger.debug("Retrieved seller name for item {}: {}", item.getId(), sellerName);
 
                 // Map to ItemDTO
                 ItemDTO itemDTO = mapToItemDTO(item, auctionDTO, sellerName);
                 itemDTOs.add(itemDTO);
+                logger.debug("Successfully mapped item {} to DTO", item.getId());
             } catch (Exception e) {
-                logger.error("Error fetching auction details for item ID: {}", item.getId(), e);
-                // Optionally, continue or handle differently
+                logger.error("Error processing item ID: {} - Error: {}", item.getId(), e.getMessage(), e);
             }
         }
 
+        logger.debug("Returning {} processed items", itemDTOs.size());
         return itemDTOs;
     }
-
+    
     /**
      * Retrieves an Item with its auction details and seller's name.
      *
