@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  auction-service:
+    build:
+      context: ./FinalCall-AuctionService
+    ports:
+      - "8084:8084"
+    networks:
+      - finalcall-network
+    depends_on:
+      - authentication-service
+
+  authentication-service:
+    build:
+      context: ./FinalCall-AuthenticationService
+    ports:
+      - "8081:8081"
+    networks:
+      - finalcall-network
+
+  catalogue-service:
+    build:
+      context: ./FinalCall-CatalogueService
+    ports:
+      - "8082:8082"
+    networks:
+      - finalcall-network
+    depends_on:
+      - authentication-service
+
+  payment-service:
+    build:
+      context: ./FinalCall-PaymentService
+    ports:
+      - "8083:8083"
+    networks:
+      - finalcall-network
+    depends_on:
+      - authentication-service
+      - auction-service
+
+  frontend:
+    build:
+      context: ./FinalCall-Frontend/finalcall-frontend
+    ports:
+      - "80:80"
+    networks:
+      - finalcall-network
+    depends_on:
+      - auction-service
+      - authentication-service
+      - catalogue-service
+      - payment-service
+
+networks:
+  finalcall-network:
+    driver: bridge
