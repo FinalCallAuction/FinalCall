@@ -1,16 +1,6 @@
 version: '3.8'
 
 services:
-  auction-service:
-    build:
-      context: ./FinalCall-AuctionService
-    ports:
-      - "8084:8084"
-    networks:
-      - finalcall-network
-    depends_on:
-      - authentication-service
-
   authentication-service:
     build:
       context: ./FinalCall-AuthenticationService
@@ -28,6 +18,17 @@ services:
       - finalcall-network
     depends_on:
       - authentication-service
+
+  auction-service:
+    build:
+      context: ./FinalCall-AuctionService
+    ports:
+      - "8084:8084"
+    networks:
+      - finalcall-network
+    depends_on:
+      - authentication-service
+      - catalogue-service
 
   payment-service:
     build:
@@ -48,9 +49,9 @@ services:
     networks:
       - finalcall-network
     depends_on:
-      - auction-service
       - authentication-service
       - catalogue-service
+      - auction-service
       - payment-service
 
 networks:
