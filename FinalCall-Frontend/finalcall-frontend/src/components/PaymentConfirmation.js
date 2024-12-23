@@ -1,4 +1,3 @@
-// src/components/payment/PaymentConfirmation.js
 import React, { useState, useEffect, useContext } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
@@ -71,13 +70,22 @@ const PaymentConfirmation = () => {
           <div className="grid grid-cols-2 gap-4">
             <div className="text-gray-600">Transaction ID:</div>
             <div>{payment.transactionId}</div>
-            
+
             <div className="text-gray-600">Amount:</div>
-            <div>${payment.amount.toFixed(2)} {payment.currency}</div>
-            
+            <div>
+              ${payment.amount.toFixed(2)} {payment.currency}
+            </div>
+
             <div className="text-gray-600">Payment Method:</div>
-            <div>Card ending in {payment.lastFourDigits}</div>
-            
+            <div>{payment.paymentMethod.replace('_', ' ')}</div>
+
+            {payment.paymentMethod !== 'BANK_TRANSFER' && (
+              <>
+                <div className="text-gray-600">Card:</div>
+                <div>Card ending in {payment.lastFourDigits}</div>
+              </>
+            )}
+
             <div className="text-gray-600">Date:</div>
             <div>{new Date(payment.timestamp).toLocaleString()}</div>
           </div>
