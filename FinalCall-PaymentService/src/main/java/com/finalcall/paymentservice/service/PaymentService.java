@@ -5,6 +5,7 @@ import com.finalcall.paymentservice.dto.AuctionDTO;
 import com.finalcall.paymentservice.dto.PaymentRequest;
 import com.finalcall.paymentservice.dto.PaymentResponse;
 import com.finalcall.paymentservice.entity.Payment;
+import com.finalcall.paymentservice.entity.PaymentMethod;
 import com.finalcall.paymentservice.entity.PaymentStatus;
 import com.finalcall.paymentservice.exception.PaymentProcessingException;
 import com.finalcall.paymentservice.repository.PaymentRepository;
@@ -41,43 +42,45 @@ public class PaymentService {
 
     @Transactional
     public PaymentResponse processAuctionPayment(Long auctionId, PaymentRequest paymentRequest) {
-        // Validate the auction exists and is ended
+        // Validate auction and payment amount
         var auctionDTO = auctionServiceClient.getAuctionById(auctionId);
         if (auctionDTO == null || !"ENDED".equals(auctionDTO.getStatus())) {
             throw new PaymentProcessingException("Invalid auction state for payment");
         }
-
-        // Validate payment amount matches auction final price
         if (!paymentRequest.getAmount().equals(auctionDTO.getCurrentBidPrice())) {
             throw new PaymentProcessingException("Payment amount does not match auction price");
         }
 
-        // Validate card details
-        if (!creditCardValidator.validateCard(paymentRequest)) {
-            throw new PaymentProcessingException("Invalid card details");
+        // Validate card details for card payments
+        if (paymentRequest.getPaymentMethod() == PaymentMethod.CREDIT_CARD ||
+            paymentRequest.getPaymentMethod() == PaymentMethod.DEBIT_CARD) {
+            if (!creditCardValidator.validateCard(paymentRequest)) {
+                throw new PaymentProcessingException("Invalid card details");
+            }
         }
+
+        // Bank transfer validation can be added here if needed
 
         // Create payment record
         Payment payment = new Payment();
         payment.setAmount(paymentRequest.getAmount());
         payment.setCurrency(paymentRequest.getCurrency());
-        payment.setPaymentMethod("Credit Card");
+        payment.setPaymentMethod(paymentRequest.getPaymentMethod());
         payment.setAuctionId(auctionId);
         payment.setBuyerId(auctionDTO.getCurrentBidderId());
         payment.setSellerId(auctionDTO.getSellerId());
-      //  payment.setItemId(auctionDTO.getItemId()); 
         payment.setStatus(PaymentStatus.PROCESSING);
         payment.setTransactionId(UUID.randomUUID().toString());
-        payment.setLastFourDigits(paymentRequest.getCardNumber().substring(12));
+        payment.setLastFourDigits(paymentRequest.getCardNumber().substring(12)); // For card payments
         payment.setCreatedAt(LocalDateTime.now());
         payment.setUpdatedAt(LocalDateTime.now());
 
         // Process payment
         boolean isSuccess = processPayment(payment);
         payment.setStatus(isSuccess ? PaymentStatus.SUCCESS : PaymentStatus.FAILED);
-        
+
         Payment savedPayment = paymentRepository.save(payment);
-        
+
         return mapToPaymentResponse(savedPayment);
     }
 
