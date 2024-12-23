@@ -68,17 +68,43 @@ export const getPaymentStatusProperties = (status) => {
   return statusMap[status] || statusMap.FAILED;
 };
 
-// Generate mock card for testing
-export const generateTestCard = () => {
+// Generate mock credit card for testing
+export const generateTestCreditCard = () => {
   const currentYear = new Date().getFullYear();
   const nextYear = currentYear + 1;
   return {
+    paymentMethod: 'CREDIT_CARD',
     number: '4532015112830366', // Test valid card number
     expiry: `12/${nextYear.toString().slice(-2)}`, // MM/YY format for next year
     cvv: '123',
     cardHolderName: 'Test User'
   };
 };
+
+// Generate mock debit card for testing
+export const generateTestDebitCard = () => {
+  const currentYear = new Date().getFullYear();
+  const nextYear = currentYear + 1;
+  return {
+    paymentMethod: 'DEBIT_CARD',
+    number: '4012888888881881', // Test valid debit card number
+    expiry: `11/${nextYear.toString().slice(-2)}`, // MM/YY format for next year
+    cvv: '456',
+    cardHolderName: 'Test User'
+  };
+};
+
+// Generate mock bank transfer details for testing
+export const generateTestBankTransfer = () => {
+  return {
+    paymentMethod: 'BANK_TRANSFER',
+    accountNumber: '9876543210', // Test valid bank account number
+    routingNumber: '123456789', // Test valid routing number
+    accountHolderName: 'Test User',
+    bankName: 'Test Bank'
+  };
+};
+
 
 // Check if payment amount is within acceptable range
 export const validatePaymentAmount = (amount) => {
