@@ -3,6 +3,8 @@ package com.finalcall.paymentservice.dto;
 import lombok.Data;
 import java.time.LocalDateTime;
 
+import com.finalcall.paymentservice.entity.PaymentMethod;
+
 @Data
 public class PaymentResponse {
     private String transactionId;
@@ -10,7 +12,7 @@ public class PaymentResponse {
     private String currency;
     private String status;
     private String lastFourDigits;
-    private String paymentMethod;
+    private PaymentMethod paymentMethod;
     private LocalDateTime timestamp;
     private Long auctionId;
     private Long buyerId;
@@ -61,11 +63,11 @@ public class PaymentResponse {
         this.lastFourDigits = lastFourDigits;
     }
 
-    public String getPaymentMethod() {
+    public PaymentMethod getPaymentMethod() {
         return paymentMethod;
     }
 
-    public void setPaymentMethod(String paymentMethod) {
+    public void setPaymentMethod(PaymentMethod paymentMethod) {
         this.paymentMethod = paymentMethod;
     }
 
