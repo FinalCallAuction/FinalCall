@@ -26,9 +26,9 @@ public class Payment {
 
     @Column(nullable = false, length = 3)
     private String currency;
-
-    @Column(nullable = false)
-    private String paymentMethod;
+//
+//    @Column(nullable = false)
+//    private String paymentMethod;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -36,7 +36,11 @@ public class Payment {
 
     @Column(nullable = false, unique = true)
     private String transactionId;
-
+    
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PaymentMethod paymentMethod;
+    
     @Column(nullable = false)
     private Long auctionId;
 
@@ -71,7 +75,7 @@ public class Payment {
     }
 
     // Full constructor
-    public Payment(Double amount, String currency, String paymentMethod, Long auctionId, 
+    public Payment(Double amount, String currency, PaymentMethod paymentMethod, Long auctionId, 
                   Long buyerId, Long sellerId, String lastFourDigits, String transactionId) {
         this.amount = amount;
         this.currency = currency;
@@ -119,11 +123,11 @@ public class Payment {
         this.currency = currency;
     }
 
-    public String getPaymentMethod() {
+    public PaymentMethod getPaymentMethod() {
         return paymentMethod;
     }
 
-    public void setPaymentMethod(String paymentMethod) {
+    public void setPaymentMethod(PaymentMethod paymentMethod) {
         this.paymentMethod = paymentMethod;
     }
 
